@@ -1,0 +1,8 @@
+Python development
+------------------
+Any code should pass the pep8 standard before pushed to the master
+branch. Also, it should comply with the flake8 standard except E901. One
+can easily take that into account by adding the following line at the end
+of their .bashrc file:
+
+    flake8='flake8 --ignore=E901'
