@@ -38,8 +38,10 @@ class Scheduler(object):
             print('Scheduler: Assigning request %d to core %d at %d'
                   % (request.idx, empty_core, env.now))
             self.host.cores[empty_core] = request
-            yield env.timeout(10)
+            yield env.timeout(request.exec_time)
             self.host.cores[empty_core] = None
+            latency = env.now - request.start_time
+            print('Scheduler: Request %d Latency %d' % (request.idx, latency))
             print('Scheduler: Request %d finished execution at core %d at %d'
                   % (request.idx, empty_core, env.now))
             empty_core = self.find_empty_cores()
@@ -50,9 +52,10 @@ class Scheduler(object):
 
 
 class Request(object):
-    def __init__(self, idx, exec_time):
+    def __init__(self, idx, exec_time, start_time):
         self.idx = idx
         self.exec_time = exec_time
+        self.start_time = start_time
 
 
 class Request_Generator(object):
@@ -65,8 +68,8 @@ class Request_Generator(object):
         idx = 0
         while True:
             print 'Generator: Dispatching request %d at %d' % (idx, env.now)
-            self.host.receive_request(Request(idx, 10))
-            yield env.timeout(6)
+            self.host.receive_request(Request(idx, 4, env.now))
+            yield env.timeout(5)
             idx = idx + 1
 
 
