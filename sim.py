@@ -2,6 +2,8 @@
 
 import simpy
 
+from hdrh.histogram import HdrHistogram
+
 
 class Host(object):
     def __init__(self, env, sched, num_cores):
@@ -16,8 +18,9 @@ class Host(object):
 
 
 class Scheduler(object):
-    def __init__(self, env):
+    def __init__(self, env, histogram):
         self.env = env
+        self.histogram = histogram
         self.queue = []
 
     def set_host(self, host):
@@ -42,6 +45,7 @@ class Scheduler(object):
             self.host.cores[empty_core] = None
             latency = env.now - request.start_time
             print('Scheduler: Request %d Latency %d' % (request.idx, latency))
+            self.histogram.record_value(latency)
             print('Scheduler: Request %d finished execution at core %d at %d'
                   % (request.idx, empty_core, env.now))
             empty_core = self.find_empty_cores()
@@ -75,7 +79,14 @@ class Request_Generator(object):
 
 env = simpy.Environment()
 num_cores = 2
-sim_sched = Scheduler(env)
+
+# Track latency in the range 1us to 1sec with precision 0.01%
+histogram = HdrHistogram(1, 1000 * 1000, 2)
+
+# Initialize the different components of the system
+sim_sched = Scheduler(env, histogram)
 sim_host = Host(env, sim_sched, num_cores)
 sim_gen = Request_Generator(env, sim_host)
-env.run(until=17)
+
+# Run the simulation
+env.run(until=100)
