@@ -1,0 +1,4 @@
+Python development
+==================
+Any code before pushed to the master branch should pass the flake8 and
+pep8 standards.
