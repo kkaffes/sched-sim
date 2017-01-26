@@ -152,10 +152,11 @@ def main():
     # Initialize the different components of the system
     env = simpy.Environment()
     sim_sched = Scheduler(env, histogram)
-    sim_host = Host(env, sim_sched, opts.cores)
-    sim_gen = HeavyTailRequestGenerator(env, sim_host, opts.exec_time,
-                                        opts.heavy_per, opts.heavy_time,
-                                        opts.cores, opts.load)
+    sim_host = Host(env, sim_sched, int(opts.cores))
+    sim_gen = HeavyTailRequestGenerator(env, sim_host, int(opts.exec_time),
+                                        int(opts.heavy_per),
+                                        int(opts.heavy_time), int(opts.cores),
+                                        int(opts.load))
 
     # Run the simulation
     env.run(until=50000)
