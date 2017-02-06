@@ -3,7 +3,7 @@ import logging
 class Host(object):
     def __init__(self, env, sched, num_cores):
         self.env = env
-        self.cores = [None] * num_cores
+        self.free_cores = list(xrange(num_cores))
         self.sched = sched
         self.sched.set_host(self)
 

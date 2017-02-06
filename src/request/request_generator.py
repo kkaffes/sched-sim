@@ -2,6 +2,7 @@ import random
 import numpy as np
 from request import Request
 
+
 class RequestGenerator(object):
     def __init__(self, env, host):
         self.env = env
@@ -14,6 +15,7 @@ class RequestGenerator(object):
             self.host.receive_request(Request(idx, 7, self.env.now))
             yield self.env.timeout(1)
             idx += 1
+
 
 class HeavyTailRequestGenerator(RequestGenerator):
 
@@ -43,4 +45,3 @@ class HeavyTailRequestGenerator(RequestGenerator):
             s = np.random.np.random.exponential(self.scale)
             yield self.env.timeout(s)
             idx += 1
-

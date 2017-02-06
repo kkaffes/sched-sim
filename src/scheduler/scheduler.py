@@ -1,5 +1,6 @@
 import logging
 
+
 class Scheduler(object):
     def __init__(self, env, histogram):
         self.env = env
@@ -11,22 +12,21 @@ class Scheduler(object):
         self.host = host
 
     def find_empty_cores(self):
-        for i in range(len(self.host.cores)):
-            if not self.host.cores[i]:
-                return i
-        return None
+        try:
+            return self.host.free_cores.pop(0)
+        except IndexError:
+            return None
 
     def handle_request(self, request):
         self.queue.append(request)
-        empty_core = self.find_empty_cores()
 
-        while ((empty_core is not None) and len(self.queue) > 0):
+        while (len(self.host.free_cores) > 0 and len(self.queue) > 0):
             request = self.queue.pop(0)
+            empty_core = self.find_empty_cores()
             logging.debug('Scheduler: Assigning request %d to core %d at %d'
                           % (request.idx, empty_core, self.env.now))
-            self.host.cores[empty_core] = request
             yield self.env.timeout(request.exec_time)
-            self.host.cores[empty_core] = None
+            self.host.free_cores.append(empty_core)
             latency = self.env.now - request.start_time
             logging.debug('Scheduler: Request %d Latency %d' %
                           (request.idx, latency))
@@ -34,7 +34,6 @@ class Scheduler(object):
             logging.debug('Scheduler: Request %d finished execution at core %d'
                           ' at %d' % (request.idx, empty_core, self.env.now))
             self.request_number = self.request_number + 1
-            empty_core = self.find_empty_cores()
         if (len(self.queue) > 0):
             logging.debug('Scheduler: Can\'t schedule request %d Cores are'
                           ' full at %d' % (request.idx, self.env.now))
