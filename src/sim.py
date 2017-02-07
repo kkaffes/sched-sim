@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 import simpy
 import logging
 import optparse
@@ -8,9 +9,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from hdrh.histogram import HdrHistogram
 
-from host.host import GlobalQueueHost
-# from host.host import MultiQueueHost
-from request.request_generator import HeavyTailRequestGenerator
+from host.host import *
+from request.request_generator import *
+
+
+gen_dict = {
+    'heavy_tail': 'HeavyTailRequestGenerator',
+    'poisson': 'PoissonGenerator',
+    'lognormal': 'LogNormalGenerator'}
 
 
 def main():
@@ -19,20 +25,36 @@ def main():
     parser.add_option('-v', '--verbose', dest='verbose',
                       action='count', help='Increase verbosity (specify'
                       ' multiple times for more)')
-    parser.add_option('-g', '--print_hist', action='store_true', dest='hist',
+    parser.add_option('-g', '--print-hist', action='store_true', dest='hist',
                       help='Print request latency histogram', default=False)
-    parser.add_option('-x', '--exec_time', dest='exec_time',
-                      action='store', help='Set the base request execution'
-                      ' time', default=10)
-    parser.add_option('-p', '--heavy_per', dest='heavy_per', action='store',
-                      help='Set the percentage of heavy requests', default=2)
-    parser.add_option('--heavy_time', dest='heavy_time', action='store',
-                      help='Set the execution time of heavy requests',
-                      default=80)
     parser.add_option('-c', '--cores', dest='cores', action='store',
                       help='Set the number of cores of the system', default=8)
     parser.add_option('-l', '--load', dest='load', action='store',
                       help='Set the load of the system', default=1)
+    parser.add_option('--work-gen', dest='work_gen', help='Set the request'
+                      ' execution time generation function (heavy_tail)',
+                      action='store', default="heavy_tail")
+    parser.add_option('--inter-gen', dest='inter_gen', help='Set the'
+                      ' request inter-arrival time generation function'
+                      ' (poisson)', action='store', default='poisson')
+
+    group = optparse.OptionGroup(parser, 'Heavy Tail Distribution Options')
+    group.add_option('-x', '--exec_time', dest='exec_time',
+                     action='store', help='Set the base request execution'
+                     ' time', default=10)
+    group.add_option('-p', '--heavy-per', dest='heavy_per', action='store',
+                     help='Set the percentage of heavy requests', default=2)
+    group.add_option('--heavy-time', dest='heavy_time', action='store',
+                     help='Set the execution time of heavy requests',
+                     default=80)
+    parser.add_option_group(group)
+
+    group = optparse.OptionGroup(parser, 'Interarrival Distribution Options')
+    group.add_option('--std-dev', dest='std_dev', action='store', help='Set'
+                     ' the standard deviation of the interarrival time',
+                     default=1)
+    parser.add_option_group(group)
+
     opts, args = parser.parse_args()
 
     # Setup logging
@@ -49,11 +71,14 @@ def main():
     # Initialize the different components of the system
     env = simpy.Environment()
     sim_host = GlobalQueueHost(env, int(opts.cores), histogram)
-    # sim_host = MultiQueueHost(env, int(opts.cores), histogram)
-    sim_gen = HeavyTailRequestGenerator(env, sim_host, int(opts.exec_time),
-                                        int(opts.heavy_per),
-                                        int(opts.heavy_time), int(opts.cores),
-                                        int(opts.load))
+
+    # Get the workload generation classes
+    inter_gen = getattr(sys.modules[__name__], gen_dict[opts.inter_gen])
+    work_gen = getattr(sys.modules[__name__], gen_dict[opts.work_gen])
+
+    # Create the workload generator
+    sim_gen = work_gen(env, sim_host, inter_gen, float(opts.load),
+                       int(opts.cores), opts)
 
     # Run the simulation
     env.run(until=50000)
