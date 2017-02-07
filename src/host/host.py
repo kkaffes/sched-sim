@@ -5,11 +5,11 @@ from scheduler.load_balancer import LoadBalancer
 
 
 class GlobalQueueHost(object):
-    def __init__(self, env, num_cores, histogram):
+    def __init__(self, env, num_cores, deq_cost, histogram):
         self.env = env
         self.idle_cores = []
         self.active_cores = []
-        self.queue = FIFORequestQueue(env, -1, 0)
+        self.queue = FIFORequestQueue(env, -1, deq_cost)
 
         for i in range(num_cores):
             new_core = CoreScheduler(env, histogram, i)
@@ -38,14 +38,14 @@ class MultiQueueHost(object):
 
     idle_cores = []
 
-    def __init__(self, env, num_queues, histogram):
+    def __init__(self, env, num_queues, deq_cost, histogram):
         self.env = env
 
         self.queues = []
         self.cores = []
         # Generate queues and cpus
         for i in range(num_queues):
-            new_queue = FIFORequestQueue(env, -1, 1)
+            new_queue = FIFORequestQueue(env, -1, deq_cost)
             new_core = CoreScheduler(env, histogram, i)
 
             new_core.set_queue(new_queue)

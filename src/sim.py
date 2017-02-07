@@ -16,7 +16,9 @@ from request.request_generator import *
 gen_dict = {
     'heavy_tail': 'HeavyTailRequestGenerator',
     'poisson': 'PoissonGenerator',
-    'lognormal': 'LogNormalGenerator'}
+    'lognormal': 'LogNormalGenerator',
+    'global': 'GlobalQueueHost',
+    'local': 'MultiQueueHost'}
 
 
 def main():
@@ -36,7 +38,8 @@ def main():
                       action='store', default="heavy_tail")
     parser.add_option('--inter-gen', dest='inter_gen', help='Set the'
                       ' request inter-arrival time generation function'
-                      ' (poisson)', action='store', default='poisson')
+                      ' (poisson, lognormal)', action='store',
+                      default='poisson')
 
     group = optparse.OptionGroup(parser, 'Heavy Tail Distribution Options')
     group.add_option('-x', '--exec_time', dest='exec_time',
@@ -55,6 +58,14 @@ def main():
                      default=1)
     parser.add_option_group(group)
 
+    group = optparse.OptionGroup(parser, 'Queue Options')
+    group.add_option('-q', '--queue', dest='queue', action='store',
+                     help='Set the queue configuration (global, local)',
+                     default='global')
+    group.add_option('--deq-cost', dest='deq_cost', action='store',
+                     help='Set the dequeuing cost', default=0.0)
+    parser.add_option_group(group)
+
     opts, args = parser.parse_args()
 
     # Setup logging
@@ -70,7 +81,11 @@ def main():
 
     # Initialize the different components of the system
     env = simpy.Environment()
-    sim_host = GlobalQueueHost(env, int(opts.cores), histogram)
+
+    # Get the queue configuration
+    queue_conf = getattr(sys.modules[__name__], gen_dict[opts.queue])
+    sim_host = queue_conf(env, int(opts.cores), float(opts.deq_cost),
+                          histogram)
 
     # Get the workload generation classes
     inter_gen = getattr(sys.modules[__name__], gen_dict[opts.inter_gen])
