@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 from hdrh.histogram import HdrHistogram
 
 from host.host import Host
-from scheduler.scheduler import Scheduler
 from request.request_generator import HeavyTailRequestGenerator
 
 
@@ -48,15 +47,14 @@ def main():
 
     # Initialize the different components of the system
     env = simpy.Environment()
-    sim_sched = Scheduler(env, histogram)
-    sim_host = Host(env, sim_sched, int(opts.cores))
+    sim_host = Host(env, opts.cores, histogram)
     sim_gen = HeavyTailRequestGenerator(env, sim_host, int(opts.exec_time),
                                         int(opts.heavy_per),
                                         int(opts.heavy_time), int(opts.cores),
                                         int(opts.load))
 
     # Run the simulation
-    env.run(until=50000)
+    env.run(until=100)
 
     if opts.hist:
         # Ploting out values
@@ -72,7 +70,6 @@ def main():
 
     # Print 99% latency and throughput
     print histogram.get_value_at_percentile(99)
-    print sim_sched.request_number
 
 
 if __name__ == "__main__":
