@@ -19,18 +19,14 @@ class CoreScheduler(object):
 
     def process_request(self, request):
         logging.debug('Scheduler: Assigning request {} to core {} at {}'
-                        .format(request.idx, self.core_id, self.env.now))
+                      .format(request.idx, self.core_id, self.env.now))
         yield self.env.timeout(request.exec_time)
         latency = self.env.now - request.start_time
         logging.debug('Scheduler: Request {} Latency {}'.format
-                        (request.idx, latency))
+                      (request.idx, latency))
         self.histogram.record_value(latency)
         logging.debug('Scheduler: Request {} finished execution at core {}'
-                        ' at {}'.format(request.idx, self.core_id, self.env.now))
-        # if (len(self.queue) > 0):
-            # logging.debug('Scheduler: Can\'t schedule request {} Cores are'
-                          # ' full at {}' % (request.idx, self.env.now))
-            # yield self.env.timeout(0)
+                      ' at {}'.format(request.idx, self.core_id, self.env.now))
 
     # Start up if not already looping
     def become_active(self):
@@ -48,7 +44,7 @@ class CoreScheduler(object):
 
             # Waiting for my turn of the lock
             logging.debug("CoreScheduler: Core {} acquiring lock"
-                        .format(self.core_id, self.env.now))
+                          .format(self.core_id, self.env.now))
             yield req
             logging.debug("CoreScheduler: Core {} got lock at {}"
                           .format(self.core_id, self.env.now))
@@ -66,11 +62,9 @@ class CoreScheduler(object):
             if p:
                 yield p
 
-
         logging.debug("CoreScheduler: Core {} becomes idle at {}"
                       .format(self.core_id, self.env.now))
         self.active = False
 
         if self.host:
             self.host.core_become_idle(self)
-

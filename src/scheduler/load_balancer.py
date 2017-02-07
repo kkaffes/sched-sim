@@ -1,8 +1,10 @@
 import logging
 
+
 class LoadBalancer(object):
 
     index = 0
+
     def __init__(self, num_queues):
         self.num_queues = num_queues
         pass

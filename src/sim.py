@@ -8,8 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from hdrh.histogram import HdrHistogram
 
-# from host.host import GlobalQueueHost
-from host.host import MultiQueueHost
+from host.host import GlobalQueueHost
+# from host.host import MultiQueueHost
 from request.request_generator import HeavyTailRequestGenerator
 
 
@@ -48,15 +48,15 @@ def main():
 
     # Initialize the different components of the system
     env = simpy.Environment()
-    # sim_host = GlobalQueueHost(env, opts.cores, histogram)
-    sim_host = MultiQueueHost(env, opts.cores, histogram)
+    sim_host = GlobalQueueHost(env, int(opts.cores), histogram)
+    # sim_host = MultiQueueHost(env, int(opts.cores), histogram)
     sim_gen = HeavyTailRequestGenerator(env, sim_host, int(opts.exec_time),
                                         int(opts.heavy_per),
                                         int(opts.heavy_time), int(opts.cores),
                                         int(opts.load))
 
     # Run the simulation
-    env.run(until=100)
+    env.run(until=50000)
 
     if opts.hist:
         # Ploting out values

@@ -2,13 +2,14 @@ import simpy
 import Queue
 import logging
 
-class RequestQueue(object):
 
+class RequestQueue(object):
 
     def __init__(self, env, size):
         self.env = env
         # If size = -1, assume infinite
         self.size = size
+
 
 class FIFORequestQueue(RequestQueue):
 
@@ -18,9 +19,8 @@ class FIFORequestQueue(RequestQueue):
         self.q = Queue.Queue()
         self.dequeue_time = dequeue_time
 
-
         # Assuming queue can only be accessed once at a time
-        self.resource = simpy.Resource(env, capacity = 1)
+        self.resource = simpy.Resource(env, capacity=1)
 
     def enqueue(self, request):
         self.q.put(request)
