@@ -4,13 +4,13 @@ import sys
 import simpy
 import logging
 import optparse
-import numpy as np
 
 import matplotlib.pyplot as plt
 from hdrh.histogram import HdrHistogram
 
 from host.host import *
 from request.request_generator import *
+from request.interarrival_generator import *
 
 
 gen_dict = {
@@ -77,7 +77,11 @@ def main():
     logging.basicConfig(level=log_level)
 
     # Track latency in the range 1us to 1sec with precision 0.01%
-    histogram = HdrHistogram(1, 1000 * 1000, 2)
+    # TODO make this option or something: number of histograms
+    num_histogram = 2
+    histograms = []
+    for i in range(num_histogram):
+        histograms.append(HdrHistogram(1, 1000 * 1000, 2))
 
     # Initialize the different components of the system
     env = simpy.Environment()
@@ -85,15 +89,34 @@ def main():
     # Get the queue configuration
     queue_conf = getattr(sys.modules[__name__], gen_dict[opts.queue])
     sim_host = queue_conf(env, int(opts.cores), float(opts.deq_cost),
-                          histogram)
+                          histograms)
 
     # Get the workload generation classes
-    inter_gen = getattr(sys.modules[__name__], gen_dict[opts.inter_gen])
-    work_gen = getattr(sys.modules[__name__], gen_dict[opts.work_gen])
+
+    # TODO: update for multiclass
+    # inter_gen = getattr(sys.modules[__name__], gen_dict[opts.inter_gen])
+    # work_gen = getattr(sys.modules[__name__], gen_dict[opts.work_gen])
 
     # Create the workload generator
-    sim_gen = work_gen(env, sim_host, inter_gen, float(opts.load),
-                       int(opts.cores), opts)
+    # sim_gen = work_gen(env, sim_host, inter_gen, float(opts.load),
+    # int(opts.cores), opts)
+
+    # Here's an example for making two generators
+    inter_gen0 = PoissonGenerator
+    work_gen0 = HeavyTailRequestGenerator
+
+    inter_gen1 = LogNormalGenerator
+    work_gen1 = HeavyTailRequestGenerator
+
+    multigenerator = MultipleRequestGenerator(env, sim_host)
+    multigenerator.add_generator(
+        work_gen0(env, sim_host, inter_gen0,
+                  float(opts.load), int(opts.cores), opts))
+
+    multigenerator.add_generator(
+        work_gen1(env, sim_host, inter_gen1,
+                  float(opts.load), int(opts.cores), opts))
+    multigenerator.begin_generation()
 
     # Run the simulation
     env.run(until=50000)
@@ -101,7 +124,7 @@ def main():
     if opts.hist:
         # Ploting out values
         values = []
-        for item in histogram.get_recorded_iterator():
+        for item in histogram[0].get_recorded_iterator():
             values.extend([item.value_iterated_to] *
                           item.count_added_in_this_iter_step)
         plt.hist(values)
@@ -111,7 +134,8 @@ def main():
         plt.show()
 
     # Print 99% latency and throughput
-    print histogram.get_value_at_percentile(99)
+    print histograms[0].get_value_at_percentile(99)
+    print histograms[1].get_value_at_percentile(99)
 
 
 if __name__ == "__main__":

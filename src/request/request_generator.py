@@ -1,22 +1,49 @@
 import random
-import numpy as np
 from request import Request
 
 
 class RequestGenerator(object):
+
+    flow_id = 0
+
     def __init__(self, env, host, load, num_cores):
         self.env = env
         self.host = host
         self.load = load
         self.num_cores = num_cores
-        self.action = env.process(self.run())
+
+    def begin_generation(self):
+        self.action = self.env.process(self.run())
+
+    def set_flow_id(self, flow_id):
+        self.flow_id = flow_id
 
     def run(self):
         idx = 0
         while True:
-            self.host.receive_request(Request(idx, 7, self.env.now))
+            # Fixed 7 execution time
+            self.host.receive_request(Request(idx, 7,
+                                              self.env.now,
+                                              self.flow_id))
             yield self.env.timeout(1)
             idx += 1
+
+
+class MultipleRequestGenerator(object):
+    def __init__(self, env, host):
+        self.env = env
+        self.host = host
+        self.generators = []
+        self.cur_flow_id = 0
+
+    def add_generator(self, gen):
+        gen.set_flow_id(self.cur_flow_id)
+        self.cur_flow_id += 1
+        self.generators.append(gen)
+
+    def begin_generation(self):
+        for i in self.generators:
+            i.begin_generation()
 
 
 class HeavyTailRequestGenerator(RequestGenerator):
@@ -42,35 +69,11 @@ class HeavyTailRequestGenerator(RequestGenerator):
             # NOTE Percentage must be integer
             is_heavy = random.randint(0, 99) < self.heavy_percent
             exec_time = self.heavy_exec_time if is_heavy else self.exec_time
-            self.host.receive_request(Request(idx, exec_time, self.env.now))
+            self.host.receive_request(Request(idx,
+                                              exec_time,
+                                              self.env.now, self.flow_id))
 
             # Generate inter-arrival time
             s = self.inter_gen.next()
             yield self.env.timeout(s)
             idx += 1
-
-
-class InterArrivalGenerator(object):
-    def __init__(self, mean, scale=None):
-        self.mean = mean
-        self.scale = scale
-
-    def next(self):
-        return 1
-
-
-class PoissonGenerator(InterArrivalGenerator):
-    def next(self):
-        return np.random.exponential(self.mean)
-
-
-class LogNormalGenerator(InterArrivalGenerator):
-    def __init__(self, mean, scale=None):
-        InterArrivalGenerator.__init__(self, mean, scale)
-        self.scale = int(scale)
-        # Calculate the mean of the underlying normal distribution
-        self.mean = np.log(mean**2 / np.sqrt(mean**2 + self.scale))
-        self.scale = np.sqrt(np.log(self.scale / mean**2 + 1))
-
-    def next(self):
-        return np.random.lognormal(self.mean, self.scale)

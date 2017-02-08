@@ -2,9 +2,9 @@ import logging
 
 
 class CoreScheduler(object):
-    def __init__(self, env, histogram, core_id):
+    def __init__(self, env, histograms, core_id):
         self.env = env
-        self.histogram = histogram
+        self.histograms = histograms
         self.core_id = core_id
         self.active = False
 
@@ -24,7 +24,8 @@ class CoreScheduler(object):
         latency = self.env.now - request.start_time
         logging.debug('Scheduler: Request {} Latency {}'.format
                       (request.idx, latency))
-        self.histogram.record_value(latency)
+        flow_id = request.flow_id
+        self.histograms[flow_id].record_value(latency)
         logging.debug('Scheduler: Request {} finished execution at core {}'
                       ' at {}'.format(request.idx, self.core_id, self.env.now))
 
