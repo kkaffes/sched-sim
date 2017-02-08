@@ -41,8 +41,15 @@ def main():
                       ' (poisson, lognormal)', action='store',
                       default='poisson')
 
+    group = optparse.OptionGroup(parser, 'Scheduler Options')
+    group.add_option('--time-slice', dest='time_slice', action='store',
+                     help='Set the maximum number of ticks a request is'
+                     ' allowed to run in a processor without being preempted'
+                     ' (set to 0 for no-preemption)', default=0)
+    parser.add_option_group(group)
+
     group = optparse.OptionGroup(parser, 'Heavy Tail Distribution Options')
-    group.add_option('-x', '--exec_time', dest='exec_time',
+    group.add_option('-x', '--exec-time', dest='exec_time',
                      action='store', help='Set the base request execution'
                      ' time', default=10)
     group.add_option('-p', '--heavy-per', dest='heavy_per', action='store',
@@ -89,7 +96,7 @@ def main():
     # Get the queue configuration
     queue_conf = getattr(sys.modules[__name__], gen_dict[opts.queue])
     sim_host = queue_conf(env, int(opts.cores), float(opts.deq_cost),
-                          histograms)
+                          float(opts.time_slice), histograms)
 
     # Get the workload generation classes
 

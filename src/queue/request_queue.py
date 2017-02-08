@@ -1,6 +1,5 @@
 import simpy
 import Queue
-import logging
 
 
 class RequestQueue(object):
