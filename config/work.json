@@ -1,0 +1,20 @@
+{
+    "1": {
+        "work_gen": "heavy_tail",
+        "inter_gen": "poisson",
+        "load": 0.5,
+        "exec_time": 10,
+        "heavy_per": 2,
+        "heavy_time": 10,
+        "std_dev": 1
+    },
+    "2": {
+        "work_gen": "heavy_tail",
+        "inter_gen": "poisson",
+        "load": 0.5,
+        "exec_time": 1,
+        "heavy_per": 2,
+        "heavy_time": 1,
+        "std_dev": 1
+    }
+}

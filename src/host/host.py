@@ -18,7 +18,7 @@ class GlobalQueueHost(object):
             self.idle_cores.append(new_core)
 
     def receive_request(self, request):
-        logging.debug('Host: Received request %d at %d' % (request.idx,
+        logging.debug('Host: Received request %d at %f' % (request.idx,
                       self.env.now))
 
         self.queue.enqueue(request)

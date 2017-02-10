@@ -28,6 +28,7 @@ class CoreScheduler(object):
                           (request.idx, latency))
             flow_id = request.flow_id
             self.histograms[flow_id].record_value(latency)
+            self.histograms[0].record_value(latency)
             logging.debug('Scheduler: Request {} finished execution at core {}'
                           ' at {}'.format(request.idx, self.core_id,
                                           self.env.now))

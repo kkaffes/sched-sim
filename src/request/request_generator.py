@@ -4,7 +4,7 @@ from request import Request
 
 class RequestGenerator(object):
 
-    flow_id = 0
+    flow_id = 1
 
     def __init__(self, env, host, load, num_cores):
         self.env = env
@@ -34,7 +34,7 @@ class MultipleRequestGenerator(object):
         self.env = env
         self.host = host
         self.generators = []
-        self.cur_flow_id = 0
+        self.cur_flow_id = 1
 
     def add_generator(self, gen):
         gen.set_flow_id(self.cur_flow_id)
@@ -47,24 +47,28 @@ class MultipleRequestGenerator(object):
 
 
 class HeavyTailRequestGenerator(RequestGenerator):
-    def __init__(self, env, host, inter_gen, load, num_cores, opts):
+    def __init__(self, env, host, inter_gen, num_cores, opts):
         # Tail percent of 2 means that 2% of requests require "tail latency"
         # execution time, the others require "latency" execution
         # time.
-        RequestGenerator.__init__(self, env, host, load, num_cores)
-        self.exec_time = int(opts.exec_time)
-        self.heavy_exec_time = int(opts.heavy_time)
-        self.heavy_percent = int(opts.heavy_per)
+        RequestGenerator.__init__(self, env, host, opts["load"], num_cores)
+        self.exec_time = opts["exec_time"]
+        self.heavy_exec_time = opts["heavy_time"]
+        self.heavy_percent = opts["heavy_per"]
 
         inv_load = 1.0 / self.load
         mean = (inv_load * (self.heavy_exec_time * (self.heavy_percent /
                 100.0) + self.exec_time * ((100 - self.heavy_percent) /
                 100.0)) / self.num_cores)
-        self.inter_gen = inter_gen(mean, opts.std_dev)
+        self.inter_gen = inter_gen(mean, opts["std_dev"])
 
     def run(self):
         idx = 0
         while True:
+            # Generate inter-arrival time
+            s = self.inter_gen.next()
+            yield self.env.timeout(s)
+
             # Generate request
             # NOTE Percentage must be integer
             is_heavy = random.randint(0, 99) < self.heavy_percent
@@ -73,7 +77,4 @@ class HeavyTailRequestGenerator(RequestGenerator):
                                               exec_time,
                                               self.env.now, self.flow_id))
 
-            # Generate inter-arrival time
-            s = self.inter_gen.next()
-            yield self.env.timeout(s)
             idx += 1
