@@ -12,6 +12,9 @@ class RequestGenerator(object):
         self.load = load
         self.num_cores = num_cores
 
+    def set_host(self, host):
+        self.host = host
+
     def begin_generation(self):
         self.action = self.env.process(self.run())
 
@@ -35,6 +38,7 @@ class MultipleRequestGenerator(object):
         self.host = host
         self.generators = []
         self.cur_flow_id = 1
+        self.idx = 0
 
     def add_generator(self, gen):
         gen.set_flow_id(self.cur_flow_id)
@@ -43,7 +47,14 @@ class MultipleRequestGenerator(object):
 
     def begin_generation(self):
         for i in self.generators:
+            i.set_host(self)
             i.begin_generation()
+
+    def receive_request(self, request):
+        request.idx = self.idx
+        self.host.receive_request(request)
+        self.idx += 1
+
 
 
 class HeavyTailRequestGenerator(RequestGenerator):

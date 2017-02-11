@@ -19,7 +19,8 @@ gen_dict = {
     'poisson': 'PoissonGenerator',
     'lognormal': 'LogNormalGenerator',
     'global': 'GlobalQueueHost',
-    'local': 'MultiQueueHost'}
+    'local': 'MultiQueueHost',
+}
 
 
 def main():
@@ -77,7 +78,9 @@ def main():
     sim_host = queue_conf(env, int(opts.cores), float(opts.deq_cost),
                           float(opts.time_slice), histograms)
 
-    # Create the workload generation object
+    # sim_host = ShinjukuHost(env, int(opts.cores),
+                            # float(opts.time_slice), histograms)
+
     multigenerator = MultipleRequestGenerator(env, sim_host)
 
     # Create one object per flow

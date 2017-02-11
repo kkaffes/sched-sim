@@ -30,5 +30,4 @@ class FIFORequestQueue(RequestQueue):
     def dequeue(self):
         if self.q.empty():
             return None
-
         return self.q.get()
