@@ -73,7 +73,7 @@ class ShinjukuScheduler(object):
                           .format(done_request.idx, self.env.now))
             flow_id = done_request.flow_id
             latency = self.env.now - done_request.start_time
-            self.histograms[flow_id].record_value(latency)
+            self.histograms.record_value(flow_id, latency)
 
         if not self.active:
             self.become_active()
@@ -136,8 +136,7 @@ class CoreScheduler(object):
             logging.debug('Scheduler: Request {} Latency {}'.format
                           (request.idx, latency))
             flow_id = request.flow_id
-            self.histograms[flow_id].record_value(latency)
-            self.histograms[0].record_value(latency)
+            self.histograms.record_value(flow_id, latency)
             logging.debug('Scheduler: Request {} finished execution at core {}'
                           ' at {}'.format(request.idx, self.core_id,
                                           self.env.now))

@@ -7,7 +7,7 @@ import logging
 import optparse
 
 import matplotlib.pyplot as plt
-from hdrh.histogram import HdrHistogram
+from util.histogram import Histogram
 
 from host.host import *
 from request.request_generator import *
@@ -69,9 +69,7 @@ def main():
     flow_config = json.loads(open(opts.work_conf).read())
 
     # Create a histogram per flow and a global histogram
-    histograms = []
-    for i in range(len(flow_config) + 1):
-        histograms.append(HdrHistogram(1, 1000 * 1000, 2))
+    histograms = Histogram(len(flow_config))
 
     # Get the queue configuration
     queue_conf = getattr(sys.modules[__name__], gen_dict[opts.queue])
@@ -100,6 +98,7 @@ def main():
 
     if opts.hist:
         # Ploting out values
+        # TODO. update if wanna see histogram
         values = []
         for item in histogram[0].get_recorded_iterator():
             values.extend([item.value_iterated_to] *
@@ -111,8 +110,7 @@ def main():
         plt.show()
 
     # Print 99% latency
-    for i in histograms:
-        print i.get_value_at_percentile(99)
+    histograms.print_percentile(99)
 
 
 if __name__ == "__main__":
