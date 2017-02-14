@@ -138,4 +138,4 @@ class ShinjukuHost(object):
         self.queue.enqueue(request)
 
         # Wake up shinjuku
-        self.shinjuku.become_active()
+        self.env.process(self.shinjuku.become_active())

@@ -28,6 +28,7 @@ class ShinjukuScheduler(object):
         logging.debug("Shinjuku: Becomes active at {}".format(self.env.now))
         while not self.queue.empty() and self.core_group.available():
             request = self.queue.dequeue()
+            yield self.env.timeout(self.queue.dequeue_time)
 
             # Calculate how much time to run
             if self.time_slice:
@@ -69,7 +70,7 @@ class ShinjukuScheduler(object):
             self.histograms.record_value(flow_id, latency)
 
         if not self.active:
-            self.become_active()
+            self.env.process(self.become_active())
 
 
 class WorkerCore(object):
