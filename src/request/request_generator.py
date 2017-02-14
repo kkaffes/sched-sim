@@ -1,6 +1,6 @@
 import random
 from request import Request
-
+import numpy as np
 
 class RequestGenerator(object):
 
@@ -71,7 +71,7 @@ class HeavyTailRequestGenerator(RequestGenerator):
         mean = (inv_load * (self.heavy_exec_time * (self.heavy_percent /
                 100.0) + self.exec_time * ((100 - self.heavy_percent) /
                 100.0)) / self.num_cores)
-        self.inter_gen = inter_gen(mean, opts["std_dev"])
+        self.inter_gen = inter_gen(mean, opts["std_dev_arrival"]**2)
 
     def run(self):
         idx = 0
@@ -84,6 +84,56 @@ class HeavyTailRequestGenerator(RequestGenerator):
             # NOTE Percentage must be integer
             is_heavy = random.randint(0, 99) < self.heavy_percent
             exec_time = self.heavy_exec_time if is_heavy else self.exec_time
+            self.host.receive_request(Request(idx,
+                                              exec_time,
+                                              self.env.now, self.flow_id))
+
+            idx += 1
+
+class ExponentialRequestGenerator(RequestGenerator):
+    def __init__(self, env, host, inter_gen, num_cores, opts):
+        RequestGenerator.__init__(self, env, host, opts["load"], num_cores)
+        self.mean = opts["mean"]
+        arrival_mean = self.mean / self.load / self.num_cores
+        self.inter_gen = inter_gen(arrival_mean, opts["std_dev_arrival"]**2)
+
+    def run(self):
+        idx = 0
+        while True:
+
+            # Generate inter-arrival time
+            s = self.inter_gen.next()
+            yield self.env.timeout(s)
+
+            exec_time = np.random.exponential(self.mean)
+
+            self.host.receive_request(Request(idx,
+                                              exec_time,
+                                              self.env.now, self.flow_id))
+
+            idx += 1
+
+class LogNormalRequestGenerator(RequestGenerator):
+    def __init__(self, env, host, inter_gen, num_cores, opts):
+        RequestGenerator.__init__(self, env, host, opts["load"], num_cores)
+
+        self.var = float(opts["std_dev_request"] ** 2)
+        self.mean = np.log(opts["mean"] / np.sqrt(opts["mean"] + self.var))
+
+        arrival_mean = opts["mean"] / self.load / self.num_cores
+
+        self.inter_gen = inter_gen(arrival_mean, opts["std_dev_arrival"]**2)
+
+    def run(self):
+        idx = 0
+        while True:
+
+            # Generate inter-arrival time
+            s = self.inter_gen.next()
+            yield self.env.timeout(s)
+
+            exec_time = np.random.lognormal(self.mean, self.var)
+
             self.host.receive_request(Request(idx,
                                               exec_time,
                                               self.env.now, self.flow_id))

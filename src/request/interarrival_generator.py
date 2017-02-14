@@ -10,12 +10,12 @@ class InterArrivalGenerator(object):
         return 1
 
 
-class PoissonGenerator(InterArrivalGenerator):
+class PoissonArrivalGenerator(InterArrivalGenerator):
     def next(self):
         return np.random.exponential(self.mean)
 
 
-class LogNormalGenerator(InterArrivalGenerator):
+class LogNormalArrivalGenerator(InterArrivalGenerator):
     def __init__(self, mean, scale=None):
         InterArrivalGenerator.__init__(self, mean, scale)
         self.scale = float(scale)

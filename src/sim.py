@@ -16,8 +16,10 @@ from request.interarrival_generator import *
 
 gen_dict = {
     'heavy_tail': 'HeavyTailRequestGenerator',
-    'poisson': 'PoissonGenerator',
-    'lognormal': 'LogNormalGenerator',
+    'poisson_arrival': 'PoissonArrivalGenerator',
+    'lognormal_arrival': 'LogNormalArrivalGenerator',
+    'exponential_request': 'ExponentialRequestGenerator',
+    'lognormal_request': 'LogNormalRequestGenerator',
     'global': 'GlobalQueueHost',
     'local': 'MultiQueueHost',
 }
