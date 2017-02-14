@@ -41,7 +41,7 @@ class CoreGroup(object):
 
     def set_notifier(self, notifier):
         for core in self.idle_cores:
-            # TODO: May need to check if cores are Notification cores
+            # TODO: May need to check if cores are worker cores
             core.set_notifier(notifier)
 
 
@@ -111,17 +111,20 @@ class MultiQueueHost(object):
 
 class ShinjukuHost(object):
 
-    def __init__(self, env, num_cores, time_slice, histograms):
+    def __init__(self, env, num_cores, deq_cost, time_slice, histograms):
         self.env = env
-        self.queue = FIFORequestQueue(env, -1, 0)
+        self.queue = FIFORequestQueue(env, -1, deq_cost)
 
         self.shinjuku = ShinjukuScheduler(env, histograms, time_slice)
 
-        # Making core group and giving it to shinjukuscheduler
+        # Create core group and pass it to shinjuku scheduler
         new_cg = CoreGroup()
 
-        for i in range(num_cores):
-            new_core = NotificationCore(env, histograms, i)
+        # Make sure that there are at least 2 cores (dispatcher, worker)
+        assert(num_cores > 1)
+
+        for i in range(num_cores - 1):
+            new_core = WorkerCore(env, histograms, i)
             new_cg.append_idle_core(new_core)
 
         new_cg.set_notifier(self.shinjuku)
