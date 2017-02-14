@@ -72,7 +72,7 @@ def main():
     flow_config = json.loads(open(opts.work_conf).read())
 
     # Create a histogram per flow and a global histogram
-    histograms = Histogram(len(flow_config))
+    histograms = Histogram(len(flow_config), float(opts.cores))
 
     # Get the queue configuration
     host_conf = getattr(sys.modules[__name__], gen_dict[opts.host_type])
@@ -117,6 +117,7 @@ def main():
 
     # Print 99% latency
     histograms.print_percentile(99)
+    histograms.print_per_core_count()
 
 
 if __name__ == "__main__":
