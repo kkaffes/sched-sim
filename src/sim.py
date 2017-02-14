@@ -22,6 +22,7 @@ gen_dict = {
     'lognormal_request': 'LogNormalRequestGenerator',
     'global': 'GlobalQueueHost',
     'local': 'MultiQueueHost',
+    'shinjuku':  'ShinjukuHost'
 }
 
 
@@ -46,10 +47,10 @@ def main():
                      ' (set to 0 for no-preemption)', default=0.0)
     parser.add_option_group(group)
 
-    group = optparse.OptionGroup(parser, 'Queue Options')
-    group.add_option('-q', '--queue', dest='queue', action='store',
-                     help='Set the queue configuration (global, local)',
-                     default='global')
+    group = optparse.OptionGroup(parser, 'Host Options')
+    group.add_option('--host-type', dest='host_type', action='store',
+                     help=('Set the host configuration (global queue,'
+                           ' local queue, shinjuku)'), default='global')
     group.add_option('--deq-cost', dest='deq_cost', action='store',
                      help='Set the dequeuing cost', default=0.0)
     parser.add_option_group(group)
@@ -74,12 +75,9 @@ def main():
     histograms = Histogram(len(flow_config))
 
     # Get the queue configuration
-    queue_conf = getattr(sys.modules[__name__], gen_dict[opts.queue])
-    sim_host = queue_conf(env, int(opts.cores), float(opts.deq_cost),
-                          float(opts.time_slice), histograms)
-
-    # sim_host = ShinjukuHost(env, int(opts.cores),
-                            # float(opts.time_slice), histograms)
+    host_conf = getattr(sys.modules[__name__], gen_dict[opts.host_type])
+    sim_host = host_conf(env, int(opts.cores), float(opts.deq_cost),
+                         float(opts.time_slice), histograms)
 
     multigenerator = MultipleRequestGenerator(env, sim_host)
 
@@ -90,6 +88,12 @@ def main():
                             gen_dict[params["inter_gen"]])
         work_gen = getattr(sys.modules[__name__],
                            gen_dict[params["work_gen"]])
+
+        # Need to generate less load when we have shinjuku because one
+        # of the cores is just the dispatcher
+        if (opts.host_type == "shinjuku"):
+            opts.cores = int(opts.cores) - 1
+
         multigenerator.add_generator(work_gen(env, sim_host, inter_gen,
                                               int(opts.cores), params))
 
