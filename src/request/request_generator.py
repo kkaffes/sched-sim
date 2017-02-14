@@ -117,8 +117,9 @@ class LogNormalRequestGenerator(RequestGenerator):
     def __init__(self, env, host, inter_gen, num_cores, opts):
         RequestGenerator.__init__(self, env, host, opts["load"], num_cores)
 
-        self.var = float(opts["std_dev_request"] ** 2)
-        self.mean = np.log(opts["mean"] / np.sqrt(opts["mean"] + self.var))
+        self.scale = float(opts["std_dev_request"] ** 2)
+        self.mean = np.log(opts["mean"]**2 / np.sqrt(opts["mean"]**2 + self.scale))
+        self.var = np.sqrt(np.log( self.scale / opts["mean"]**2 + 1))
 
         arrival_mean = opts["mean"] / self.load / self.num_cores
 
