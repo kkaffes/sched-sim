@@ -71,7 +71,7 @@ class HeavyTailRequestGenerator(RequestGenerator):
         mean = (inv_load * (self.heavy_exec_time * (self.heavy_percent /
                 100.0) + self.exec_time * ((100 - self.heavy_percent) /
                 100.0)) / self.num_cores)
-        self.inter_gen = inter_gen(mean, opts["std_dev_arrival"]**2)
+        self.inter_gen = inter_gen(mean, opts)
 
     def run(self):
         idx = 0
@@ -93,9 +93,9 @@ class HeavyTailRequestGenerator(RequestGenerator):
 class ExponentialRequestGenerator(RequestGenerator):
     def __init__(self, env, host, inter_gen, num_cores, opts):
         RequestGenerator.__init__(self, env, host, opts["load"], num_cores)
-        self.mean = opts["mean"]
+        self.mean = float(opts["mean"])
         arrival_mean = self.mean / self.load / self.num_cores
-        self.inter_gen = inter_gen(arrival_mean, opts["std_dev_arrival"]**2)
+        self.inter_gen = inter_gen(arrival_mean, opts)
 
     def run(self):
         idx = 0
@@ -123,7 +123,7 @@ class LogNormalRequestGenerator(RequestGenerator):
 
         arrival_mean = opts["mean"] / self.load / self.num_cores
 
-        self.inter_gen = inter_gen(arrival_mean, opts["std_dev_arrival"]**2)
+        self.inter_gen = inter_gen(arrival_mean, opts)
 
     def run(self):
         idx = 0
