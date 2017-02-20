@@ -6,13 +6,15 @@ import json
 import tempfile
 import subprocess
 
+from multiprocessing import Process
+
 OUTPUT_DIR = "../out/"
 
 
 def main():
     # Set the simulation parameters
     iterations = 10
-    core_count = [1, 10]
+    core_count = [100, 200]
     time_slices = [0.0]
     host_types = ["global"]
     deq_costs = [0.0]
@@ -32,13 +34,21 @@ def main():
                         "std_dev_request": 1,
                     }}]
 
+    processes = []
     for deq_cost in deq_costs:
         for host in host_types:
             for time_slice in time_slices:
                 for cores in core_count:
                     for config_json in config_jsons:
-                        run_sim(deq_cost, host, time_slice, cores,
-                                config_json, iterations)
+                        p = Process(target=run_sim, args=(deq_cost, host,
+                                                          time_slice, cores,
+                                                          config_json,
+                                                          iterations,))
+                        processes.append(p)
+                        p.start()
+
+    for process in processes:
+        p.join()
 
 
 def run_sim(deq_cost, host, time_slice, cores, config_json, iterations):
