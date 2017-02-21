@@ -4,6 +4,7 @@ import os
 import sys
 import copy
 import json
+import time
 import tempfile
 import subprocess
 
@@ -18,8 +19,11 @@ def main():
     core_count = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 50, 100, 250, 500,
                   750, 1000]
     time_slices = [1.0]
+    time_slices = [0.0]
     host_types = ["global"]
     deq_costs = [0.0]
+
+    batch_run = 4
 
     config_jsons = [{"1": {
                         "work_gen": "lognormal_request",
@@ -29,22 +33,23 @@ def main():
                         "std_dev_request": 1,
                     }}]
 
-    for i in range(2,10):
+    for i in range(2, 10):
         temp_conf = copy.deepcopy(config_jsons[0])
         temp_conf["1"]["std_dev_request"] = i * 1.0
         config_jsons.append(temp_conf)
 
-    for i in range(1,10):
+    for i in range(1, 10):
         temp_conf = copy.deepcopy(config_jsons[0])
         temp_conf["1"]["std_dev_request"] = i * 10.0
         config_jsons.append(temp_conf)
 
-    for i in range(1,11):
+    for i in range(1, 11):
         temp_conf = copy.deepcopy(config_jsons[0])
         temp_conf["1"]["std_dev_request"] = i * 100.0
         config_jsons.append(temp_conf)
 
-    processes = []
+    idle = []
+    running = []
     for deq_cost in deq_costs:
         for host in host_types:
             for time_slice in time_slices:
@@ -54,11 +59,27 @@ def main():
                                                           time_slice, cores,
                                                           config_json,
                                                           iterations,))
-                        processes.append(p)
-                        p.start()
+                        idle.append(p)
 
-    for process in processes:
-        p.join()
+    # Running phase
+    while len(idle) > 0:
+        while len(running) < batch_run:
+            p = idle.pop(0)
+            p.start()
+            running.append(p)
+        to_finish = []
+        for process in running:
+            if not process.is_alive():
+                to_finish.append(process)
+        for p in to_finish:
+            running.remove(p)
+        time.sleep(1)
+
+    print "Winding down"
+
+    # Wind down phase
+    for run in running:
+        run.join()
 
 
 def run_sim(deq_cost, host, time_slice, cores, config_json, iterations):
