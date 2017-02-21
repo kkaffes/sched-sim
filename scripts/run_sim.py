@@ -2,6 +2,7 @@
 
 import os
 import sys
+import copy
 import json
 import tempfile
 import subprocess
@@ -14,25 +15,34 @@ OUTPUT_DIR = "../out/"
 def main():
     # Set the simulation parameters
     iterations = 10
-    core_count = [100, 200]
-    time_slices = [0.0]
+    core_count = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 50, 100, 250, 500,
+                  750, 1000]
+    time_slices = [1.0]
     host_types = ["global"]
     deq_costs = [0.0]
 
     config_jsons = [{"1": {
                         "work_gen": "lognormal_request",
                         "inter_gen": "poisson_arrival",
-                        "load": 0.5,
-                        "mean": 20,
-                        "std_dev_request": 1,
-                        },
-                     "2": {
-                        "work_gen": "lognormal_request",
-                        "inter_gen": "poisson_arrival",
-                        "load": 0.5,
+                        "load": 0.8,
                         "mean": 20,
                         "std_dev_request": 1,
                     }}]
+
+    for i in range(2,10):
+        temp_conf = copy.deepcopy(config_jsons[0])
+        temp_conf["1"]["std_dev_request"] = i * 1.0
+        config_jsons.append(temp_conf)
+
+    for i in range(1,10):
+        temp_conf = copy.deepcopy(config_jsons[0])
+        temp_conf["1"]["std_dev_request"] = i * 10.0
+        config_jsons.append(temp_conf)
+
+    for i in range(1,11):
+        temp_conf = copy.deepcopy(config_jsons[0])
+        temp_conf["1"]["std_dev_request"] = i * 100.0
+        config_jsons.append(temp_conf)
 
     processes = []
     for deq_cost in deq_costs:
