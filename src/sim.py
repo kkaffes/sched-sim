@@ -20,6 +20,7 @@ gen_dict = {
     'lognormal_arrival': 'LogNormalArrivalGenerator',
     'exponential_request': 'ExponentialRequestGenerator',
     'lognormal_request': 'LogNormalRequestGenerator',
+    'pareto_request': 'ParetoRequestGenerator',
     'global': 'GlobalQueueHost',
     'local': 'MultiQueueHost',
     'shinjuku':  'ShinjukuHost'

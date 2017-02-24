@@ -2,6 +2,7 @@ import random
 from request import Request
 import numpy as np
 
+
 class RequestGenerator(object):
 
     flow_id = 1
@@ -56,7 +57,6 @@ class MultipleRequestGenerator(object):
         self.idx += 1
 
 
-
 class HeavyTailRequestGenerator(RequestGenerator):
     def __init__(self, env, host, inter_gen, num_cores, opts):
         # Tail percent of 2 means that 2% of requests require "tail latency"
@@ -90,6 +90,7 @@ class HeavyTailRequestGenerator(RequestGenerator):
 
             idx += 1
 
+
 class ExponentialRequestGenerator(RequestGenerator):
     def __init__(self, env, host, inter_gen, num_cores, opts):
         RequestGenerator.__init__(self, env, host, opts["load"], num_cores)
@@ -113,13 +114,15 @@ class ExponentialRequestGenerator(RequestGenerator):
 
             idx += 1
 
+
 class LogNormalRequestGenerator(RequestGenerator):
     def __init__(self, env, host, inter_gen, num_cores, opts):
         RequestGenerator.__init__(self, env, host, opts["load"], num_cores)
 
         self.scale = float(opts["std_dev_request"] ** 2)
-        self.mean = np.log(opts["mean"]**2 / np.sqrt(opts["mean"]**2 + self.scale))
-        self.var = np.sqrt(np.log( self.scale / opts["mean"]**2 + 1))
+        self.mean = np.log(opts["mean"]**2 / np.sqrt(opts["mean"]**2 +
+                                                     self.scale))
+        self.var = np.sqrt(np.log(self.scale / opts["mean"]**2 + 1))
 
         arrival_mean = opts["mean"] / self.load / self.num_cores
 
@@ -139,4 +142,29 @@ class LogNormalRequestGenerator(RequestGenerator):
                                               exec_time,
                                               self.env.now, self.flow_id))
 
+            idx += 1
+
+
+class ParetoRequestGenerator(RequestGenerator):
+    def __init__(self, env, host, inter_gen, num_cores, opts):
+        RequestGenerator.__init__(self, env, host, opts["load"], num_cores)
+
+        self.scale = 1 + np.sqrt(1.0 + opts["mean"]**2 /
+                                 opts["std_dev_request"]**2)
+        self.mu = (self.scale - 1) * opts["mean"] / self.scale
+
+        arrival_mean = opts["mean"] / self.load / self.num_cores
+
+        self.inter_gen = inter_gen(arrival_mean, opts)
+
+    def run(self):
+        idx = 0
+        while True:
+            # Generate inter-arrival time
+            s = self.inter_gen.next()
+            yield self.env.timeout(s)
+
+            exec_time = (np.random.pareto(self.scale) + 1) * self.mu
+            self.host.receive_request(Request(idx, exec_time, self.env.now,
+                                              self.flow_id))
             idx += 1
