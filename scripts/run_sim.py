@@ -63,7 +63,7 @@ def main():
 
     # Running phase
     while len(idle) > 0:
-        while len(running) < batch_run:
+        while len(running) < batch_run and len(idle) > 0:
             p = idle.pop(0)
             p.start()
             running.append(p)
@@ -102,9 +102,15 @@ def run_sim(deq_cost, host, time_slice, cores, config_json, iterations):
     for i in range(len(config_json)):
         per_flow_lat.append([])
 
+    running_jobs = []
     for i in range(iterations):
-        raw = subprocess.check_output(sim_args)
-        output = raw.split("\n")[:-1]
+        # raw = subprocess.check_output(sim_args)
+        p = subprocess.Popen(sim_args, stdout=subprocess.PIPE)
+	running_jobs.append(p)
+
+    for p in running_jobs:
+        out, err = p.communicate()
+        output = out.split("\n")[:-1]
         throughput.append(float(output[-1]))
         total_lat.append(float(output[0]))
         for i in range(1, len(config_json)+1):
