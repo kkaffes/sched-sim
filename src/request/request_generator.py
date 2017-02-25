@@ -168,3 +168,27 @@ class ParetoRequestGenerator(RequestGenerator):
             self.host.receive_request(Request(idx, exec_time, self.env.now,
                                               self.flow_id))
             idx += 1
+
+class NormalRequestGenerator(RequestGenerator):
+    def __init__(self, env, host, inter_gen, num_cores, opts):
+        RequestGenerator.__init__(self, env, host, opts["load"], num_cores)
+
+        self.mu = opts["mean"]
+        self.std = opts["std_dev_request"]
+        self.inter_gen = inter_gen(opts["mean"] / self.load
+                                   / self.num_cores, opts)
+
+    def run(self):
+        idx = 0
+        while True:
+            # Generate inter-arrival time
+            s = self.inter_gen.next()
+            yield self.env.timeout(s)
+
+            exec_time = -1
+            while (exec_time < 0 or exec_time > 2 * self.mu):
+                exec_time = np.random.normal(self.mu, self.std)
+
+            self.host.receive_request(Request(idx, exec_time, self.env.now,
+                                              self.flow_id))
+            idx += 1
