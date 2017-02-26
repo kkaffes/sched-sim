@@ -104,9 +104,8 @@ def run_sim(deq_cost, host, time_slice, cores, config_json, iterations):
 
     running_jobs = []
     for i in range(iterations):
-        # raw = subprocess.check_output(sim_args)
         p = subprocess.Popen(sim_args, stdout=subprocess.PIPE)
-	running_jobs.append(p)
+        running_jobs.append(p)
 
     for p in running_jobs:
         out, err = p.communicate()
@@ -120,7 +119,6 @@ def run_sim(deq_cost, host, time_slice, cores, config_json, iterations):
     output_name = (OUTPUT_DIR + "sim_" + str(cores) + "_" + str(time_slice) +
                    "_" + str(host) + "_" + str(deq_cost))
     full_name = output_name
-    i = 0
     for key in config_json:
         val = config_json[key]
         flow_name = ("_" + "flow" + str(key) + "_" + str(val["work_gen"]) +
@@ -140,7 +138,11 @@ def run_sim(deq_cost, host, time_slice, cores, config_json, iterations):
             flow_name += "_" + str(val["std_dev_arrival"])
 
         full_name += flow_name
-        flow_name = output_name + flow_name
+
+    i = 0
+    for key in config_json:
+        flow_name = "_" + "flow" + str(key)
+        flow_name = full_name + flow_name
         with open(flow_name, 'w') as f:
             for value in per_flow_lat[i]:
                 f.write(str(value) + "\n")
