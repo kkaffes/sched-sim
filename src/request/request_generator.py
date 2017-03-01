@@ -67,10 +67,10 @@ class HeavyTailRequestGenerator(RequestGenerator):
         self.heavy_exec_time = opts["heavy_time"]
         self.heavy_percent = opts["heavy_per"]
 
+        self.mean = (self.heavy_exec_time * (self.heavy_percent / 100.0) +
+                     self.exec_time * ((100 - self.heavy_percent) / 100.0))
         inv_load = 1.0 / self.load
-        mean = (inv_load * (self.heavy_exec_time * (self.heavy_percent /
-                100.0) + self.exec_time * ((100 - self.heavy_percent) /
-                100.0)) / self.num_cores)
+        mean = inv_load * self.mean / self.num_cores
         self.inter_gen = inter_gen(mean, opts)
 
     def run(self):
@@ -84,9 +84,8 @@ class HeavyTailRequestGenerator(RequestGenerator):
             # NOTE Percentage must be integer
             is_heavy = random.randint(0, 99) < self.heavy_percent
             exec_time = self.heavy_exec_time if is_heavy else self.exec_time
-            self.host.receive_request(Request(idx,
-                                              exec_time,
-                                              self.env.now, self.flow_id))
+            self.host.receive_request(Request(idx, exec_time, self.env.now,
+                                              self.flow_id, self.mean))
 
             idx += 1
 
@@ -108,9 +107,8 @@ class ExponentialRequestGenerator(RequestGenerator):
 
             exec_time = np.random.exponential(self.mean)
 
-            self.host.receive_request(Request(idx,
-                                              exec_time,
-                                              self.env.now, self.flow_id))
+            self.host.receive_request(Request(idx, exec_time, self.env.now,
+                                              self.flow_id, self.mean))
 
             idx += 1
 
@@ -127,6 +125,7 @@ class LogNormalRequestGenerator(RequestGenerator):
         arrival_mean = opts["mean"] / self.load / self.num_cores
 
         self.inter_gen = inter_gen(arrival_mean, opts)
+        self.log_mean = opts["mean"]
 
     def run(self):
         idx = 0
@@ -138,9 +137,8 @@ class LogNormalRequestGenerator(RequestGenerator):
 
             exec_time = np.random.lognormal(self.mean, self.var)
 
-            self.host.receive_request(Request(idx,
-                                              exec_time,
-                                              self.env.now, self.flow_id))
+            self.host.receive_request(Request(idx, exec_time, self.env.now,
+                                              self.flow_id, self.log_mean))
 
             idx += 1
 
@@ -156,6 +154,7 @@ class ParetoRequestGenerator(RequestGenerator):
         arrival_mean = opts["mean"] / self.load / self.num_cores
 
         self.inter_gen = inter_gen(arrival_mean, opts)
+        self.mean = opts["mean"]
 
     def run(self):
         idx = 0
@@ -166,8 +165,9 @@ class ParetoRequestGenerator(RequestGenerator):
 
             exec_time = (np.random.pareto(self.scale) + 1) * self.mu
             self.host.receive_request(Request(idx, exec_time, self.env.now,
-                                              self.flow_id))
+                                              self.flow_id, self.mean))
             idx += 1
+
 
 class NormalRequestGenerator(RequestGenerator):
     def __init__(self, env, host, inter_gen, num_cores, opts):
@@ -175,8 +175,9 @@ class NormalRequestGenerator(RequestGenerator):
 
         self.mu = opts["mean"]
         self.std = opts["std_dev_request"]
-        self.inter_gen = inter_gen(opts["mean"] / self.load
-                                   / self.num_cores, opts)
+        self.inter_gen = inter_gen(opts["mean"] / self.load / self.num_cores,
+                                   opts)
+        self.mean = opts["mean"]
 
     def run(self):
         idx = 0
@@ -190,5 +191,5 @@ class NormalRequestGenerator(RequestGenerator):
                 exec_time = np.random.normal(self.mu, self.std)
 
             self.host.receive_request(Request(idx, exec_time, self.env.now,
-                                              self.flow_id))
+                                              self.flow_id, self.mean))
             idx += 1

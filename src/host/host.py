@@ -1,5 +1,5 @@
 import logging
-from queue.request_queue import FIFORequestQueue
+from queue.request_queue import FIFORequestQueue, FlowQueues
 from scheduler.scheduler import *
 from scheduler.load_balancer import LoadBalancer
 
@@ -47,7 +47,8 @@ class CoreGroup(object):
 
 class GlobalQueueHost(object):
 
-    def __init__(self, env, num_cores, deq_cost, time_slice, histograms):
+    def __init__(self, env, num_cores, deq_cost, time_slice, histograms,
+                 num_flows):
         self.env = env
         self.core_group = CoreGroup()
         self.queue = FIFORequestQueue(env, -1, deq_cost)
@@ -59,8 +60,8 @@ class GlobalQueueHost(object):
             self.core_group.append_idle_core(new_core)
 
     def receive_request(self, request):
-        logging.debug('Host: Received request %d at %f' % (request.idx,
-                      self.env.now))
+        logging.debug('Host: Received request %d from flow %d at %f' %
+                      (request.idx, request.flow_id, self.env.now))
 
         self.queue.enqueue(request)
 
@@ -77,7 +78,8 @@ class GlobalQueueHost(object):
 
 class MultiQueueHost(object):
 
-    def __init__(self, env, num_queues, deq_cost, time_slice, histograms):
+    def __init__(self, env, num_queues, deq_cost, time_slice, histograms,
+                 num_flows):
         self.env = env
 
         self.queues = []
@@ -111,7 +113,8 @@ class MultiQueueHost(object):
 
 class ShinjukuHost(object):
 
-    def __init__(self, env, num_cores, deq_cost, time_slice, histograms):
+    def __init__(self, env, num_cores, deq_cost, time_slice, histograms,
+                 num_flows):
         self.env = env
         self.queue = FIFORequestQueue(env, -1, deq_cost)
 
@@ -139,3 +142,31 @@ class ShinjukuHost(object):
 
         # Wake up shinjuku
         self.env.process(self.shinjuku.become_active())
+
+
+class PerFlowQueueHost(object):
+    def __init__(self, env, num_cores, deq_cost, time_slice, histograms,
+                 num_flows):
+        self.env = env
+        self.core_group = CoreGroup()
+        self.queue = FlowQueues(env, -1, deq_cost, num_flows)
+
+        for i in range(num_cores):
+            new_core = CoreScheduler(env, histograms, i, time_slice)
+            new_core.set_queue(self.queue)
+            new_core.set_host(self)
+            self.core_group.append_idle_core(new_core)
+
+    def receive_request(self, request):
+        logging.debug('Host: Received request %d from flow %d at %f' %
+                      (request.idx, request.flow_id, self.env.now))
+        self.queue.enqueue(request)
+
+        # Putting active cores into list
+        activate_core = self.core_group.pop_one_idle_core()
+        if activate_core:
+            self.env.process(activate_core.become_active())
+            self.core_group.append_active_core(activate_core)
+
+    def core_become_idle(self, core):
+        self.core_group.core_become_idle(core)

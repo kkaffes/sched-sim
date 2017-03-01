@@ -24,7 +24,8 @@ gen_dict = {
     'pareto_request': 'ParetoRequestGenerator',
     'global': 'GlobalQueueHost',
     'local': 'MultiQueueHost',
-    'shinjuku':  'ShinjukuHost'
+    'shinjuku':  'ShinjukuHost',
+    'perflow': 'PerFlowQueueHost'
 }
 
 
@@ -79,7 +80,7 @@ def main():
     # Get the queue configuration
     host_conf = getattr(sys.modules[__name__], gen_dict[opts.host_type])
     sim_host = host_conf(env, int(opts.cores), float(opts.deq_cost),
-                         float(opts.time_slice), histograms)
+                         float(opts.time_slice), histograms, len(flow_config))
 
     multigenerator = MultipleRequestGenerator(env, sim_host)
 
@@ -120,7 +121,7 @@ def main():
     # Print 99% latency
     histograms.print_percentile(99)
     histograms.print_per_core_count()
-
+    # histograms.print_mean()
 
 if __name__ == "__main__":
     main()

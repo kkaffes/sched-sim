@@ -23,3 +23,7 @@ class Histogram(object):
 
     def print_per_core_count(self):
         print self.histograms[0].get_total_count() / self.cores
+
+    def print_mean(self):
+        for i in self.histograms:
+            print i.get_mean_value()

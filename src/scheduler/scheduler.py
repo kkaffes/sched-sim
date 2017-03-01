@@ -137,6 +137,9 @@ class CoreScheduler(object):
         else:
             yield self.env.timeout(self.time_slice)
             request.exec_time -= self.time_slice
+            # request.expected_length = max(0, request.expected_length -
+            #                              self.time_slice)
+            request.expected_length -= self.time_slice
             logging.debug('Scheduler: Request {} preempted at core {} at {}'
                           .format(request.idx, self.core_id, self.env.now))
             # FIXME Add enqueue cost/lock
