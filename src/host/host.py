@@ -72,7 +72,7 @@ class GlobalQueueHost(object):
             self.env.process(activate_core.become_active())
             self.core_group.append_active_core(activate_core)
 
-    def core_become_idle(self, core):
+    def core_become_idle(self, core, done_request):
         self.core_group.core_become_idle(core)
 
 
@@ -107,7 +107,7 @@ class MultiQueueHost(object):
 
         self.env.process(self.cores[idx].become_active())
 
-    def core_become_idle(self, core):
+    def core_become_idle(self, core, done_request):
         pass
 
 
@@ -168,5 +168,53 @@ class PerFlowQueueHost(object):
             self.env.process(activate_core.become_active())
             self.core_group.append_active_core(activate_core)
 
-    def core_become_idle(self, core):
+    def core_become_idle(self, core, done_request):
         self.core_group.core_become_idle(core)
+
+class StaticCoreAllocationHost(object):
+
+    def __init__(self, env, num_cores, deq_cost, time_slices, histograms,
+                 num_flows, loads):
+        # self.core_table = {}
+        self.env = env
+        self.core_groups = []
+        self.queues = []
+
+        total_load = sum(loads)
+
+        #For sanitity check
+        total_cores = 0
+        # core_id = 0
+
+        for i in range(num_flows):
+            new_queue = FIFORequestQueue(env, -1, deq_cost)
+            proportion = loads[i] / total_load
+            num_core = int(round(num_cores * proportion))
+            total_cores += num_core
+            new_core_group = CoreGroup()
+            for j in range(num_core):
+                new_core = CoreScheduler(env, histograms, j, time_slices[i])
+                # core_id += 1
+                # self.core_table[core_id] = i
+                new_core.set_queue(new_queue)
+                new_core.set_host(self)
+                new_core_group.append_idle_core(new_core)
+            self.core_groups.append(new_core_group)
+            self.queues.append(new_queue)
+
+        if total_cores != num_cores:
+            raise "Total number of cores not the same as num_cores in host.py"
+
+    def receive_request(self, request):
+        logging.debug('Host: Received request %d from flow %d at %f' %
+                      (request.idx, request.flow_id, self.env.now))
+        self.queues[request.flow_id - 1].enqueue(request)
+
+        # Putting active cores into list
+        activate_core = self.core_groups[request.flow_id - 1].pop_one_idle_core()
+        if activate_core:
+            self.env.process(activate_core.become_active())
+            self.core_groups[request.flow_id - 1].append_active_core(activate_core)
+
+    def core_become_idle(self, core, done_request):
+        self.core_groups[done_request.flow_id - 1].core_become_idle(core)

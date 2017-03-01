@@ -2,7 +2,7 @@
     "1": {
         "work_gen": "lognormal_request",
         "inter_gen": "poisson_arrival",
-        "load": 0.5,
+        "load": 0.4,
         "mean": 20,
         "std_dev_request": 1,
         "exec_time": 10,
@@ -13,7 +13,7 @@
     "2": {
         "work_gen": "lognormal_request",
         "inter_gen": "poisson_arrival",
-        "load": 0.5,
+        "load": 0.4,
         "mean": 20,
         "std_dev_request": 1,
         "exec_time": 10,

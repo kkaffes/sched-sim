@@ -25,7 +25,8 @@ gen_dict = {
     'global': 'GlobalQueueHost',
     'local': 'MultiQueueHost',
     'shinjuku':  'ShinjukuHost',
-    'perflow': 'PerFlowQueueHost'
+    'perflow': 'PerFlowQueueHost',
+    'staticcore' : 'StaticCoreAllocationHost'
 }
 
 
@@ -78,9 +79,16 @@ def main():
     histograms = Histogram(len(flow_config), float(opts.cores))
 
     # Get the queue configuration
-    host_conf = getattr(sys.modules[__name__], gen_dict[opts.host_type])
-    sim_host = host_conf(env, int(opts.cores), float(opts.deq_cost),
-                         float(opts.time_slice), histograms, len(flow_config))
+
+    # TODO:Update so that it's parametrizable
+    # host_conf = getattr(sys.modules[__name__], gen_dict[opts.host_type])
+    # sim_host = host_conf(env, int(opts.cores), float(opts.deq_cost),
+                         # float(opts.time_slice), histograms, len(flow_config))
+
+    print "Warning: Need to update in sim.py for parameterization and Testing"
+    # First list is time slice, second list is load
+    sim_host = StaticCoreAllocationHost(env, int(opts.cores), float(opts.deq_cost),
+                         [0.0, 0.0], histograms, len(flow_config), [0.4, 0.4])
 
     multigenerator = MultipleRequestGenerator(env, sim_host)
 

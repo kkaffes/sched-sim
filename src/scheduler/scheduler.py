@@ -57,7 +57,7 @@ class ShinjukuScheduler(object):
                       .format(self.env.now, core.core_id))
         # Put it at the end of queue for now
         done_request = core.remove_request()
-        self.core_group.core_become_idle(core)
+        self.core_group.core_become_idle(core, done_request)
         if done_request.exec_time != 0:
             self.queue.enqueue(done_request)
             logging.debug("Shinjuku: Request {} re-added to queue at {}"
@@ -150,6 +150,7 @@ class CoreScheduler(object):
     def become_active(self):
         if (self.active):
             return
+        request = None
 
         # Become idle only after process finishes
         self.active = True
@@ -184,4 +185,4 @@ class CoreScheduler(object):
         self.active = False
 
         if self.host:
-            self.host.core_become_idle(self)
+            self.host.core_become_idle(self, request)
