@@ -1,5 +1,6 @@
 import simpy
 import Queue
+import logging
 
 
 class RequestQueue(object):
@@ -97,4 +98,6 @@ class FlowQueues(RequestQueue):
             if self.q[flow].expected_length >= max_value:
                 max_index = flow
                 max_value = self.q[flow].expected_length
+        logging.debug("Dequeuing request from flow {} with length {}".
+                      format(max_index, max_value))
         return max_index

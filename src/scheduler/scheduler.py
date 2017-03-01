@@ -124,7 +124,7 @@ class CoreScheduler(object):
     def process_request(self, request):
         logging.debug('Scheduler: Assigning request {} to core {} at {}'
                       .format(request.idx, self.core_id, self.env.now))
-        if (self.time_slice == 0 or self.time_slice > request.exec_time):
+        if (self.time_slice == 0 or self.time_slice >= request.exec_time):
             yield self.env.timeout(request.exec_time)
             latency = self.env.now - request.start_time
             logging.debug('Scheduler: Request {} Latency {}'.format
