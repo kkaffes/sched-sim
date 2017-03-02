@@ -105,11 +105,12 @@ class WorkerCore(object):
 
 
 class CoreScheduler(object):
-    def __init__(self, env, histograms, core_id, time_slice):
+    def __init__(self, env, histograms, core_id, time_slice, enq_left):
         self.env = env
         self.histograms = histograms
         self.core_id = core_id
         self.time_slice = time_slice
+        self.enq_left = enq_left
         self.active = False
 
     def set_queue(self, queue):
@@ -144,7 +145,10 @@ class CoreScheduler(object):
                           .format(request.idx, self.core_id, self.env.now))
             # FIXME Add enqueue cost/lock
             # Add the unfinished request to the queue
-            self.queue.enqueue(request)
+            if self.enq_left:
+                self.queue.enqueue_left(request)
+            else:
+                self.queue.enqueue(request)
 
     # Start up if not already looping
     def become_active(self):

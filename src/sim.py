@@ -26,7 +26,7 @@ gen_dict = {
     'local': 'MultiQueueHost',
     'shinjuku':  'ShinjukuHost',
     'perflow': 'PerFlowQueueHost',
-    'staticcore' : 'StaticCoreAllocationHost'
+    'staticcore': 'StaticCoreAllocationHost'
 }
 
 
@@ -57,6 +57,9 @@ def main():
                            ' local queue, shinjuku)'), default='global')
     group.add_option('--deq-cost', dest='deq_cost', action='store',
                      help='Set the dequeuing cost', default=0.0)
+    group.add_option('--enq-front', dest='enq_front', action='store_true',
+                     help='Put a request in the front of the queue when its'
+                     ' time slice expires', default=False)
     parser.add_option_group(group)
 
     opts, args = parser.parse_args()
@@ -81,7 +84,8 @@ def main():
     # Get the queue configuration
     host_conf = getattr(sys.modules[__name__], gen_dict[opts.host_type])
     sim_host = host_conf(env, int(opts.cores), float(opts.deq_cost),
-                         float(opts.time_slice), histograms, len(flow_config))
+                         float(opts.time_slice), histograms, len(flow_config),
+                         opts)
 
     # TODO:Update so that it's parametrizable
     # print "Warning: Need to update in sim.py for parameterization and Testing"

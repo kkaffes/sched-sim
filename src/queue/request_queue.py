@@ -1,6 +1,6 @@
 import simpy
-import Queue
 import logging
+import collections
 
 
 class RequestQueue(object):
@@ -16,22 +16,25 @@ class FIFORequestQueue(RequestQueue):
     def __init__(self, env, size, dequeue_time):
         super(FIFORequestQueue, self).__init__(env, size)
         # TODO: If size is finite
-        self.q = Queue.Queue()
+        self.q = collections.deque()
         self.dequeue_time = dequeue_time
 
         # Assuming queue can only be accessed once at a time
         self.resource = simpy.Resource(env, capacity=1)
 
     def enqueue(self, request):
-        self.q.put(request)
+        self.q.append(request)
+
+    def enqueue_left(self, request):
+        self.q.appendleft(request)
 
     def empty(self):
-        return self.q.empty()
+        return len(self.q) == 0
 
     def dequeue(self):
-        if self.q.empty():
+        if len(self.q) == 0:
             return None
-        return self.q.get()
+        return self.q.popleft()
 
 
 class PerFlowRequestQueue(RequestQueue):
@@ -39,21 +42,25 @@ class PerFlowRequestQueue(RequestQueue):
     def __init__(self, env, size):
         super(PerFlowRequestQueue, self).__init__(env, size)
         # TODO: If size is finite
-        self.q = Queue.Queue()
+        self.q = collections.deque()
         self.expected_length = 0
 
     def enqueue(self, request):
-        self.q.put(request)
+        self.q.append(request)
+        self.expected_length += request.expected_length
+
+    def enqueue_left(self, request):
+        self.q.appendleft(request)
         self.expected_length += request.expected_length
 
     def empty(self):
-        return self.q.empty()
+        return len(self.q) == 0
 
     def dequeue(self):
-        if self.q.empty():
+        if len(self.q) == 0:
             return None
 
-        request = self.q.get()
+        request = self.q.popleft()
         self.expected_length -= request.expected_length
         return request
 
@@ -74,6 +81,9 @@ class FlowQueues(RequestQueue):
 
     def enqueue(self, request):
         self.q[request.flow_id].enqueue(request)
+
+    def enqueue_left(self, request):
+        self.q[request.flow_id].enqueue_left(request)
 
     def empty(self):
         # Check whether all the queues are empty
