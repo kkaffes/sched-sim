@@ -179,6 +179,12 @@ def run_sim(deq_cost, host, time_slice, cores, config_json, iterations):
         value = sum(total_lat) * 1.0 / len(total_lat)
         f.write(str(value) + "\n")
 
+    # Delete config file
+    try:
+        os.remove(config_file)
+    except:
+        pass
+
 
 if __name__ == "__main__":
     main()
