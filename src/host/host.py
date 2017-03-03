@@ -14,7 +14,7 @@ class CoreGroup(object):
         self.active_cores = []
 
     def pop_one_idle_core(self):
-        # just return first idle core
+        # Return first idle core
         if len(self.idle_cores) != 0:
             return self.idle_cores.pop(0)
         else:
@@ -47,15 +47,15 @@ class CoreGroup(object):
 
 class GlobalQueueHost(object):
 
-    def __init__(self, env, num_cores, deq_cost, time_slice, histograms,
-                 num_flows, opts):
+    def __init__(self, env, num_cores, histograms, deq_cost, flow_config,
+                 opts):
+
         self.env = env
         self.core_group = CoreGroup()
         self.queue = FIFORequestQueue(env, -1, deq_cost)
 
         for i in range(num_cores):
-            new_core = CoreScheduler(env, histograms, i, time_slice,
-                                     opts.enq_front)
+            new_core = CoreScheduler(env, histograms, i, flow_config)
             new_core.set_queue(self.queue)
             new_core.set_host(self)
             self.core_group.append_idle_core(new_core)
@@ -79,17 +79,16 @@ class GlobalQueueHost(object):
 
 class MultiQueueHost(object):
 
-    def __init__(self, env, num_queues, deq_cost, time_slice, histograms,
-                 num_flows, opts):
+    def __init__(self, env, num_queues, histograms, deq_cost, flow_config,
+                 opts):
         self.env = env
-
         self.queues = []
         self.cores = []
+
         # Generate queues and cpus
         for i in range(num_queues):
             new_queue = FIFORequestQueue(env, -1, deq_cost)
-            new_core = CoreScheduler(env, histograms, i, time_slice,
-                                     opts.enq_front)
+            new_core = CoreScheduler(env, histograms, i, flow_config)
 
             new_core.set_queue(new_queue)
             new_core.set_host(self)
@@ -106,7 +105,6 @@ class MultiQueueHost(object):
                       .format(request.idx, self.env.now, idx))
 
         self.queues[idx].enqueue(request)
-
         self.env.process(self.cores[idx].become_active())
 
     def core_become_idle(self, core, done_request):
@@ -115,12 +113,12 @@ class MultiQueueHost(object):
 
 class ShinjukuHost(object):
 
-    def __init__(self, env, num_cores, deq_cost, time_slice, histograms,
-                 num_flows, opts):
+    def __init__(self, env, num_cores, histograms, deq_cost, flow_config,
+                 opts):
         self.env = env
         self.queue = FIFORequestQueue(env, -1, deq_cost)
 
-        self.shinjuku = ShinjukuScheduler(env, histograms, time_slice)
+        self.shinjuku = ShinjukuScheduler(env, histograms, flow_config)
 
         # Create core group and pass it to shinjuku scheduler
         new_cg = CoreGroup()
@@ -147,15 +145,15 @@ class ShinjukuHost(object):
 
 
 class PerFlowQueueHost(object):
-    def __init__(self, env, num_cores, deq_cost, time_slice, histograms,
-                 num_flows, opts):
+
+    def __init__(self, env, num_cores, histograms, deq_cost, flow_config,
+                 opts):
         self.env = env
         self.core_group = CoreGroup()
-        self.queue = FlowQueues(env, -1, deq_cost, num_flows)
+        self.queue = FlowQueues(env, -1, deq_cost, len(flow_config))
 
         for i in range(num_cores):
-            new_core = CoreScheduler(env, histograms, i, time_slice,
-                                     opts.enq_front)
+            new_core = CoreScheduler(env, histograms, i, flow_config)
             new_core.set_queue(self.queue)
             new_core.set_host(self)
             self.core_group.append_idle_core(new_core)
@@ -177,18 +175,17 @@ class PerFlowQueueHost(object):
 
 class StaticCoreAllocationHost(object):
 
-    def __init__(self, env, num_cores, deq_cost, time_slices, histograms,
-                 num_flows, loads, opts):
-        # self.core_table = {}
+    def __init__(self, env, num_cores, histograms, deq_cost, flow_config,
+                 opts):
         self.env = env
         self.core_groups = []
         self.queues = []
 
+        loads = [flow['load'] for flow in flow_config]
         total_load = sum(loads)
 
         # For sanitity check
         total_cores = 0
-        # core_id = 0
 
         for i in range(num_flows):
             new_queue = FIFORequestQueue(env, -1, deq_cost)
@@ -197,9 +194,7 @@ class StaticCoreAllocationHost(object):
             total_cores += num_core
             new_core_group = CoreGroup()
             for j in range(num_core):
-                new_core = CoreScheduler(env, histograms, j, time_slices[i])
-                # core_id += 1
-                # self.core_table[core_id] = i
+                new_core = CoreScheduler(env, histograms, j, flow_config)
                 new_core.set_queue(new_queue)
                 new_core.set_host(self)
                 new_core_group.append_idle_core(new_core)
@@ -214,11 +209,13 @@ class StaticCoreAllocationHost(object):
                       (request.idx, request.flow_id, self.env.now))
         self.queues[request.flow_id - 1].enqueue(request)
 
-        # Putting active cores into list
-        activate_core = self.core_groups[request.flow_id - 1].pop_one_idle_core()
+        # Put active cores into list
+        activate_core = self.core_groups[request.flow_id1].\
+            pop_one_idle_core()
         if activate_core:
             self.env.process(activate_core.become_active())
-            self.core_groups[request.flow_id - 1].append_active_core(activate_core)
+            self.core_groups[request.flow_id].\
+                append_active_core(activate_core)
 
     def core_become_idle(self, core, done_request):
-        self.core_groups[done_request.flow_id - 1].core_become_idle(core)
+        self.core_groups[done_request.flow_id].core_become_idle(core)

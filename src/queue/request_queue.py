@@ -25,7 +25,7 @@ class FIFORequestQueue(RequestQueue):
     def enqueue(self, request):
         self.q.append(request)
 
-    def enqueue_left(self, request):
+    def enqueue_front(self, request):
         self.q.appendleft(request)
 
     def empty(self):
@@ -49,7 +49,7 @@ class PerFlowRequestQueue(RequestQueue):
         self.q.append(request)
         self.expected_length += request.expected_length
 
-    def enqueue_left(self, request):
+    def enqueue_front(self, request):
         self.q.appendleft(request)
         self.expected_length += request.expected_length
 
@@ -71,7 +71,7 @@ class FlowQueues(RequestQueue):
         super(FlowQueues, self).__init__(env, size)
         # TODO: If size is finite
         self.q = {}
-        for flow in range(1, num_flows + 1):
+        for flow in range(num_flows):
             self.q[flow] = PerFlowRequestQueue(env, size)
         self.dequeue_time = dequeue_time
 
@@ -82,8 +82,8 @@ class FlowQueues(RequestQueue):
     def enqueue(self, request):
         self.q[request.flow_id].enqueue(request)
 
-    def enqueue_left(self, request):
-        self.q[request.flow_id].enqueue_left(request)
+    def enqueue_front(self, request):
+        self.q[request.flow_id].enqueue_front(request)
 
     def empty(self):
         # Check whether all the queues are empty

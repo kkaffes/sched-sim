@@ -6,11 +6,12 @@ class Histogram(object):
 
     def __init__(self, num_histograms, cores):
         self.histograms = [HdrHistogram(1, 1000 * 1000, 2)
-                           for i in range(num_histograms + 1)]
+                           for i in range(num_histograms)]
+        self.global_histogram = HdrHistogram(1, 1000 * 1000, 2)
         self.cores = cores
 
     def record_value(self, flow, value):
-        self.histograms[0].record_value(value)
+        self.global_histogram.record_value(value)
         self.histograms[flow].record_value(value)
 
     def print_percentile(self, percentile):

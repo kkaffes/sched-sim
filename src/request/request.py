@@ -6,5 +6,4 @@ class Request(object):
         self.exec_time = exec_time
         self.start_time = start_time
         self.flow_id = flow_id
-        # self.expected_length = expected_length
         self.expected_length = exec_time

@@ -38,7 +38,7 @@ class MultipleRequestGenerator(object):
         self.env = env
         self.host = host
         self.generators = []
-        self.cur_flow_id = 1
+        self.cur_flow_id = 0
         self.idx = 0
 
     def add_generator(self, gen):

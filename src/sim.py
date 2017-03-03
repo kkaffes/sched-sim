@@ -44,22 +44,13 @@ def main():
                       help='Configuration file for the load generation'
                       ' functions', default="../config/work.json")
 
-    group = optparse.OptionGroup(parser, 'Scheduler Options')
-    group.add_option('--time-slice', dest='time_slice', action='store',
-                     help='Set the maximum number of ticks a request is'
-                     ' allowed to run in a processor without being preempted'
-                     ' (set to 0 for no-preemption)', default=0.0)
-    parser.add_option_group(group)
-
     group = optparse.OptionGroup(parser, 'Host Options')
     group.add_option('--host-type', dest='host_type', action='store',
                      help=('Set the host configuration (global queue,'
-                           ' local queue, shinjuku)'), default='global')
+                           ' local queue, shinjuku, per flow queues,'
+                           ' static core allocation)'), default='global')
     group.add_option('--deq-cost', dest='deq_cost', action='store',
                      help='Set the dequeuing cost', default=0.0)
-    group.add_option('--enq-front', dest='enq_front', action='store_true',
-                     help='Put a request in the front of the queue when its'
-                     ' time slice expires', default=False)
     parser.add_option_group(group)
 
     opts, args = parser.parse_args()
@@ -83,21 +74,22 @@ def main():
 
     # Get the queue configuration
     host_conf = getattr(sys.modules[__name__], gen_dict[opts.host_type])
-    sim_host = host_conf(env, int(opts.cores), float(opts.deq_cost),
-                         float(opts.time_slice), histograms, len(flow_config),
-                         opts)
+    sim_host = host_conf(env, int(opts.cores), histograms,
+                         float(opts.deq_cost), flow_config, opts)
 
     # TODO:Update so that it's parametrizable
-    # print "Warning: Need to update in sim.py for parameterization and Testing"
+    # print "Warning: Need to update sim.py for parameterization and Testing"
     # First list is time slice, second list is load
-    # sim_host = StaticCoreAllocationHost(env, int(opts.cores), float(opts.deq_cost),
-    #                     [0.0, 0.0], histograms, len(flow_config), [0.4, 0.4])
+    # sim_host = StaticCoreAllocationHost(env, int(opts.cores),
+    #                                     float(opts.deq_cost), [0.0, 0.0],
+    #                                     histograms, len(flow_config),
+    #                                     [0.4, 0.4])
 
     multigenerator = MultipleRequestGenerator(env, sim_host)
 
     # Create one object per flow
     for flow in flow_config:
-        params = flow_config[flow]
+        params = flow
         inter_gen = getattr(sys.modules[__name__],
                             gen_dict[params["inter_gen"]])
         work_gen = getattr(sys.modules[__name__],

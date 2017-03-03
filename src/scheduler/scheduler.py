@@ -5,10 +5,10 @@ class ShinjukuScheduler(object):
     # This is for if we want to add request to another queue
     output_queues = []
 
-    def __init__(self, env, histograms, time_slice):
+    def __init__(self, env, histograms, flow_config):
         self.env = env
         self.histograms = histograms
-        self.time_slice = time_slice
+        self.flow_config = flow_config
         self.active = False
 
     def set_core_group(self, group):
@@ -31,10 +31,10 @@ class ShinjukuScheduler(object):
             yield self.env.timeout(self.queue.dequeue_time)
 
             # Calculate how much time to run
-            if self.time_slice:
-                run_time = self.time_slice if (
-                    self.time_slice <= request.exec_time
-                                    ) else request.exec_time
+            time_slice = self.flow_config[request.flow_id].get("time_slice")
+            if time_slice:
+                run_time = (time_slice if time_slice < request.exec_time else
+                            request.exec_time)
             else:
                 run_time = request.exec_time
 
@@ -105,12 +105,11 @@ class WorkerCore(object):
 
 
 class CoreScheduler(object):
-    def __init__(self, env, histograms, core_id, time_slice, enq_left):
+    def __init__(self, env, histograms, core_id, flow_config):
         self.env = env
         self.histograms = histograms
         self.core_id = core_id
-        self.time_slice = time_slice
-        self.enq_left = enq_left
+        self.flow_config = flow_config
         self.active = False
 
     def set_queue(self, queue):
@@ -125,7 +124,9 @@ class CoreScheduler(object):
     def process_request(self, request):
         logging.debug('Scheduler: Assigning request {} to core {} at {}'
                       .format(request.idx, self.core_id, self.env.now))
-        if (self.time_slice == 0 or self.time_slice >= request.exec_time):
+
+        time_slice = self.flow_config[request.flow_id].get('time_slice')
+        if (time_slice == 0 or time_slice >= request.exec_time):
             yield self.env.timeout(request.exec_time)
             latency = self.env.now - request.start_time
             logging.debug('Scheduler: Request {} Latency {}'.format
@@ -136,17 +137,17 @@ class CoreScheduler(object):
                           ' at {}'.format(request.idx, self.core_id,
                                           self.env.now))
         else:
-            yield self.env.timeout(self.time_slice)
-            request.exec_time -= self.time_slice
-            # request.expected_length = max(0, request.expected_length -
-            #                              self.time_slice)
-            request.expected_length -= self.time_slice
+            yield self.env.timeout(time_slice)
+            request.exec_time -= time_slice
+            request.expected_length -= time_slice
             logging.debug('Scheduler: Request {} preempted at core {} at {}'
                           .format(request.idx, self.core_id, self.env.now))
+
             # FIXME Add enqueue cost/lock
             # Add the unfinished request to the queue
-            if self.enq_left:
-                self.queue.enqueue_left(request)
+            enq_front = self.flow_config[request.flow_id].get('enq_front')
+            if enq_front:
+                self.queue.enqueue_front(request)
             else:
                 self.queue.enqueue(request)
 
@@ -176,7 +177,7 @@ class CoreScheduler(object):
             p = None
             if request is not None:
                 p = self.env.process(self.process_request(request))
-                # Can only dequeue once each cycle
+                # Take into account the dequeuing cost
                 yield self.env.timeout(self.queue.dequeue_time)
 
             self.queue.resource.release(req)

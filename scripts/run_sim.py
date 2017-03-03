@@ -15,27 +15,35 @@ OUTPUT_DIR = "../out/"
 
 def main():
     # Set the simulation parameters
-    iterations = 10
-    core_count = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 50, 100, 250, 500,
-                  750, 1000]
-    time_slices = [1.0]
+    iterations = 1
+    core_count = [1]
     time_slices = [0.0]
     host_types = ["global"]
     deq_costs = [0.0]
 
-    batch_run = 4
+    batch_run = 1
 
-    config_jsons = [{"1": {
-                        "work_gen": "lognormal_request",
+    config_jsons = [[{
+                        "work_gen": "heavy_tail",
                         "inter_gen": "poisson_arrival",
-                        "load": 0.8,
-                        "mean": 20,
-                        "std_dev_request": 1,
-                    }}]
+                        "load": 0.4,
+                        "exec_time": 10,
+                        "heavy_per": 2,
+                        "heavy_time": 10
+                     },
+                     {
+                        "work_gen": "heavy_tail",
+                        "inter_gen": "poisson_arrival",
+                        "load": 0.4,
+                        "exec_time": 10,
+                        "heavy_per": 2,
+                        "heavy_time": 10
+                     }]]
 
-    for i in range(2, 10):
+    for i in range(1):
         temp_conf = copy.deepcopy(config_jsons[0])
-        temp_conf["1"]["std_dev_request"] = i * 1.0
+        temp_conf[0]["exec_time"] = 20.0
+        temp_conf[0]["heavy_time"] = 20.0
         config_jsons.append(temp_conf)
 
     for i in range(1, 10):
