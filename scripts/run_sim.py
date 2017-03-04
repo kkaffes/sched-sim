@@ -10,52 +10,50 @@ import subprocess
 
 from multiprocessing import Process
 
-OUTPUT_DIR = "../out/"
+OUTPUT_DIR = "../out/perflow_bernoulli_cores_1-100_fcfs_ps/"
 
 
 def main():
     # Set the simulation parameters
-    iterations = 1
+    iterations = 20
+    core_count = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 50, 75, 100]
     core_count = [1]
-    host_types = ["global"]
+    host_types = ["perflow"]
     deq_costs = [0.0]
     queue_policies = ['FlowQueues']
 
-    batch_run = 1
+    batch_run = 5
 
     config_jsons = [[{
                         "work_gen": "heavy_tail",
                         "inter_gen": "poisson_arrival",
                         "load": 0.4,
-                        "exec_time": 10.0,
+                        "exec_time": 20.0,
                         "heavy_per": 2,
-                        "heavy_time": 10.0,
-                        "time_slice": 1.0
+                        "heavy_time": 20.0,
+                        "time_slice": 0.0
                      },
                      {
                         "work_gen": "heavy_tail",
                         "inter_gen": "poisson_arrival",
                         "load": 0.4,
-                        "exec_time": 10.0,
+                        "exec_time": 80.0,
                         "heavy_per": 2,
-                        "heavy_time": 10.0,
-                        "time_slice": 0.0
+                        "heavy_time": 80.0,
+                        "time_slice": 0.0,
+			"enq_front": True
                      }]]
 
-    for i in range(1):
-        temp_conf = copy.deepcopy(config_jsons[0])
-        temp_conf[0]["exec_time"] = 20.0
-        temp_conf[0]["heavy_time"] = 20.0
-        config_jsons.append(temp_conf)
-
-    # for i in range(1, 10):
+    # for i in range(2,10):
     #    temp_conf = copy.deepcopy(config_jsons[0])
-    #    temp_conf["1"]["std_dev_request"] = i * 10.0
+    #    temp_conf[1]["exec_time"] = i * 2.0
+    #    temp_conf[1]["heavy_time"] = i * 2.0
     #    config_jsons.append(temp_conf)
 
-    # for i in range(1, 11):
+    # for i in range(1,11):
     #    temp_conf = copy.deepcopy(config_jsons[0])
-    #    temp_conf["1"]["std_dev_request"] = i * 100.0
+    #    temp_conf[1]["exec_time"] = i * 20.0
+    #    temp_conf[1]["heavy_time"] = i * 20.0
     #    config_jsons.append(temp_conf)
 
     idle = []
@@ -106,7 +104,6 @@ def run_sim(deq_cost, host, cores, config_json, queue_policy, iterations):
                 "--deq-cost", str(deq_cost),
                 "--queue-policy", queue_policy]
 
-    total_lat = []
     throughput = []
     per_flow_lat = []
     for i in range(len(config_json)):
@@ -121,19 +118,17 @@ def run_sim(deq_cost, host, cores, config_json, queue_policy, iterations):
         out, err = p.communicate()
         output = out.split("\n")[:-1]
         throughput.append(float(output[-1]))
-        total_lat.append(float(output[0]))
-        for i in range(1, len(config_json)+1):
-            per_flow_lat[i-1].append(float(output[i]))
+        for i in range(len(config_json)):
+            per_flow_lat[i].append(float(output[i]))
 
     # Gather the results
     output_name = (OUTPUT_DIR + "sim_" + str(cores) + "_" + str(host) + "_" +
-                   str(deq_cost))
+                   str(deq_cost) + "_" + queue_policy)
     full_name = output_name
     for key in range(len(config_json)):
         val = config_json[key]
         flow_name = ("_" + "flow" + str(key) + "_" + str(val["work_gen"]) +
-                     "_" + str(val["inter_gen"]) + "_" + str(val["load"]) +
-                     "_" + queue_policy)
+                     "_" + str(val["inter_gen"]) + "_" + str(val["load"]))
 
         if val.get("mean"):
             flow_name += "_" + str(val["mean"])
@@ -147,6 +142,10 @@ def run_sim(deq_cost, host, cores, config_json, queue_policy, iterations):
             flow_name += "_" + str(val["heavy_time"])
         if val.get("std_dev_arrival"):
             flow_name += "_" + str(val["std_dev_arrival"])
+        if val.get("time_slice"):
+            flow_name += "_" + str(val["time_slice"])
+        if val.get("enq_front"):
+            flow_name += "_enqfront" + str(val["enq_front"])
 
         full_name += flow_name
 
@@ -171,15 +170,6 @@ def run_sim(deq_cost, host, cores, config_json, queue_policy, iterations):
 
     with open(full_name + ".throughput.total", 'w') as f:
         value = sum(throughput) * 1.0 / len(throughput)
-        f.write(str(value) + "\n")
-
-    with open(full_name, 'w') as f:
-        for value in total_lat:
-            f.write(str(value) + "\n")
-
-    full_name = full_name + ".total"
-    with open(full_name, 'w') as f:
-        value = sum(total_lat) * 1.0 / len(total_lat)
         f.write(str(value) + "\n")
 
     # Delete config file

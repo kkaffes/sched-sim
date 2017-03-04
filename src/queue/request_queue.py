@@ -105,7 +105,7 @@ class FlowQueues(RequestQueue):
         # Get the key of the flow with the longest queue
         max_value = 0
         max_index = 0
-        for flow in len(self.q):
+        for flow in range(len(self.q)):
             if self.q[flow].expected_length >= max_value:
                 max_index = flow
                 max_value = self.q[flow].expected_length
@@ -121,7 +121,7 @@ class SLOFlowQueues(RequestQueue):
         min_value = self.flow_config[0] - self.q[0].expected_length
         min_index = 0
 
-        for flow in len(self.q):
+        for flow in range(len(self.q)):
             cur_value = (self.flow_config[flow]['slo'] -
                          self.q[flow].expected_length)
             if cur_value <= min_value:
