@@ -17,9 +17,9 @@ def main():
     # Set the simulation parameters
     iterations = 1
     core_count = [1]
-    time_slices = [0.0]
     host_types = ["global"]
     deq_costs = [0.0]
+    queue_policies = ['FlowQueues']
 
     batch_run = 1
 
@@ -27,17 +27,19 @@ def main():
                         "work_gen": "heavy_tail",
                         "inter_gen": "poisson_arrival",
                         "load": 0.4,
-                        "exec_time": 10,
+                        "exec_time": 10.0,
                         "heavy_per": 2,
-                        "heavy_time": 10
+                        "heavy_time": 10.0,
+                        "time_slice": 1.0
                      },
                      {
                         "work_gen": "heavy_tail",
                         "inter_gen": "poisson_arrival",
                         "load": 0.4,
-                        "exec_time": 10,
+                        "exec_time": 10.0,
                         "heavy_per": 2,
-                        "heavy_time": 10
+                        "heavy_time": 10.0,
+                        "time_slice": 0.0
                      }]]
 
     for i in range(1):
@@ -46,27 +48,27 @@ def main():
         temp_conf[0]["heavy_time"] = 20.0
         config_jsons.append(temp_conf)
 
-    for i in range(1, 10):
-        temp_conf = copy.deepcopy(config_jsons[0])
-        temp_conf["1"]["std_dev_request"] = i * 10.0
-        config_jsons.append(temp_conf)
+    # for i in range(1, 10):
+    #    temp_conf = copy.deepcopy(config_jsons[0])
+    #    temp_conf["1"]["std_dev_request"] = i * 10.0
+    #    config_jsons.append(temp_conf)
 
-    for i in range(1, 11):
-        temp_conf = copy.deepcopy(config_jsons[0])
-        temp_conf["1"]["std_dev_request"] = i * 100.0
-        config_jsons.append(temp_conf)
+    # for i in range(1, 11):
+    #    temp_conf = copy.deepcopy(config_jsons[0])
+    #    temp_conf["1"]["std_dev_request"] = i * 100.0
+    #    config_jsons.append(temp_conf)
 
     idle = []
     running = []
     for deq_cost in deq_costs:
         for host in host_types:
-            for time_slice in time_slices:
-                for cores in core_count:
-                    for config_json in config_jsons:
+            for cores in core_count:
+                for config_json in config_jsons:
+                    for queue_policy in queue_policies:
                         p = Process(target=run_sim, args=(deq_cost, host,
-                                                          time_slice, cores,
-                                                          config_json,
-                                                          iterations,))
+                                                          cores, config_json,
+                                                          queue_policy,
+                                                          iterations))
                         idle.append(p)
 
     # Running phase
@@ -90,7 +92,7 @@ def main():
         run.join()
 
 
-def run_sim(deq_cost, host, time_slice, cores, config_json, iterations):
+def run_sim(deq_cost, host, cores, config_json, queue_policy, iterations):
     # Create config file
     conf, config_file = tempfile.mkstemp()
     os.write(conf, json.dumps(config_json))
@@ -100,9 +102,9 @@ def run_sim(deq_cost, host, time_slice, cores, config_json, iterations):
     sim_args = ["../src/sim.py",
                 "--cores", str(cores),
                 "--workload-conf", str(config_file),
-                "--time-slice", str(time_slice),
                 "--host-type", str(host),
-                "--deq-cost", str(deq_cost)]
+                "--deq-cost", str(deq_cost),
+                "--queue-policy", queue_policy]
 
     total_lat = []
     throughput = []
@@ -124,13 +126,14 @@ def run_sim(deq_cost, host, time_slice, cores, config_json, iterations):
             per_flow_lat[i-1].append(float(output[i]))
 
     # Gather the results
-    output_name = (OUTPUT_DIR + "sim_" + str(cores) + "_" + str(time_slice) +
-                   "_" + str(host) + "_" + str(deq_cost))
+    output_name = (OUTPUT_DIR + "sim_" + str(cores) + "_" + str(host) + "_" +
+                   str(deq_cost))
     full_name = output_name
-    for key in config_json:
+    for key in range(len(config_json)):
         val = config_json[key]
         flow_name = ("_" + "flow" + str(key) + "_" + str(val["work_gen"]) +
-                     "_" + str(val["inter_gen"]) + "_" + str(val["load"]))
+                     "_" + str(val["inter_gen"]) + "_" + str(val["load"]) +
+                     "_" + queue_policy)
 
         if val.get("mean"):
             flow_name += "_" + str(val["mean"])
@@ -148,7 +151,7 @@ def run_sim(deq_cost, host, time_slice, cores, config_json, iterations):
         full_name += flow_name
 
     i = 0
-    for key in config_json:
+    for key in range(len(config_json)):
         flow_name = "_" + "flow" + str(key)
         flow_name = full_name + flow_name
         with open(flow_name, 'w') as f:

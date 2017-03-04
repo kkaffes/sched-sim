@@ -51,6 +51,10 @@ def main():
                            ' static core allocation)'), default='global')
     group.add_option('--deq-cost', dest='deq_cost', action='store',
                      help='Set the dequeuing cost', default=0.0)
+    group.add_option('--queue-policy', dest='queue_policy', action='store',
+                     help=('Set the queue policy to be followed by the per'
+                           ' flow queue, ignored in any other queue'
+                           ' configuration'), default='FlowQueues')
     parser.add_option_group(group)
 
     opts, args = parser.parse_args()

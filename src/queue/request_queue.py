@@ -67,12 +67,13 @@ class PerFlowRequestQueue(RequestQueue):
 
 class FlowQueues(RequestQueue):
 
-    def __init__(self, env, size, dequeue_time, num_flows):
+    def __init__(self, env, size, dequeue_time, flow_config):
         super(FlowQueues, self).__init__(env, size)
         # TODO: If size is finite
-        self.q = {}
-        for flow in range(num_flows):
-            self.q[flow] = PerFlowRequestQueue(env, size)
+        self.q = []
+        for flow in range(len(flow_config)):
+            self.q.append(PerFlowRequestQueue(env, size))
+        self.flow_config = flow_config
         self.dequeue_time = dequeue_time
 
         # Assume queues can only be accessed once at a time
@@ -88,7 +89,7 @@ class FlowQueues(RequestQueue):
     def empty(self):
         # Check whether all the queues are empty
         for flow in self.q:
-            if not self.q[flow].empty():
+            if not flow.empty():
                 return False
 
         return True
@@ -104,10 +105,28 @@ class FlowQueues(RequestQueue):
         # Get the key of the flow with the longest queue
         max_value = 0
         max_index = 0
-        for flow in self.q:
+        for flow in len(self.q):
             if self.q[flow].expected_length >= max_value:
                 max_index = flow
                 max_value = self.q[flow].expected_length
         logging.debug("Dequeuing request from flow {} with length {}".
                       format(max_index, max_value))
         return max_index
+
+
+class SLOFlowQueues(RequestQueue):
+
+    def get_max_queue(self):
+        # Get the key of the flow which is closest to violating the SLO
+        min_value = self.flow_config[0] - self.q[0].expected_length
+        min_index = 0
+
+        for flow in len(self.q):
+            cur_value = (self.flow_config[flow]['slo'] -
+                         self.q[flow].expected_length)
+            if cur_value <= min_value:
+                min_index = flow
+                min_value = cur_value
+        logging.debug("Dequeuing request from flow {} with slack {}".
+                      format(min_index, min_value))
+        return min_index

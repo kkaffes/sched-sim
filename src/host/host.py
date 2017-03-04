@@ -1,5 +1,5 @@
 import logging
-from queue.request_queue import FIFORequestQueue, FlowQueues
+from queue.request_queue import *
 from scheduler.scheduler import *
 from scheduler.load_balancer import LoadBalancer
 
@@ -150,7 +150,8 @@ class PerFlowQueueHost(object):
                  opts):
         self.env = env
         self.core_group = CoreGroup()
-        self.queue = FlowQueues(env, -1, deq_cost, len(flow_config))
+        queue_policy = getattr(sys.modules[__name__], opts.queue_policy)
+        self.queue = queue_policy(env, -1, deq_cost, flow_config)
 
         for i in range(num_cores):
             new_core = CoreScheduler(env, histograms, i, flow_config)
