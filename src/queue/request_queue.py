@@ -114,19 +114,39 @@ class FlowQueues(RequestQueue):
         return max_index
 
 
-class SLOFlowQueues(RequestQueue):
+class SLOFlowQueues(FlowQueues):
 
     def get_max_queue(self):
         # Get the key of the flow which is closest to violating the SLO
-        min_value = self.flow_config[0] - self.q[0].expected_length
+        min_value = float('inf')
         min_index = 0
 
         for flow in range(len(self.q)):
-            cur_value = (self.flow_config[flow]['slo'] -
-                         self.q[flow].expected_length)
-            if cur_value <= min_value:
-                min_index = flow
-                min_value = cur_value
+            if not self.q[flow].empty():
+                cur_value = (self.flow_config[flow]['slo'] -
+                             self.q[flow].expected_length)
+                if cur_value <= min_value:
+                    min_index = flow
+                    min_value = cur_value
         logging.debug("Dequeuing request from flow {} with slack {}".
                       format(min_index, min_value))
         return min_index
+
+
+class SLOPerFlowQueues(FlowQueues):
+
+    def get_max_queue(self):
+        # Get the key of the flow which is closest to violating the SLO
+        max_value = 0
+        max_index = 0
+
+        for flow in range(len(self.q)):
+            if not self.q[flow].empty():
+                cur_value = (self.q[flow].expected_length /
+                             self.flow_config[flow]['slo'])
+                if cur_value >= max_value:
+                    max_index = flow
+                    max_value = cur_value
+        logging.debug("Dequeuing request from flow {} with percentage {}".
+                      format(max_index, max_value))
+        return max_index

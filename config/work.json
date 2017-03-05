@@ -3,19 +3,21 @@
         "work_gen": "heavy_tail",
         "inter_gen": "poisson_arrival",
         "load": 0.4,
-        "exec_time": 10,
+        "exec_time": 2,
         "heavy_per": 2,
-        "heavy_time": 10,
+        "heavy_time": 2,
         "time_slice": 0.0,
-        "enq_front": true
+        "slo": 4
     },
     {
         "work_gen": "heavy_tail",
         "inter_gen": "poisson_arrival",
         "load": 0.4,
-        "exec_time": 20,
+        "exec_time": 10,
         "heavy_per": 2,
-        "heavy_time": 20,
-        "time_slice": 10.0
+        "heavy_time": 10,
+        "time_slice": 2.0,
+        "enq_front": true,
+        "slo": 20
     }
 ]

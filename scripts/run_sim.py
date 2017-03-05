@@ -10,7 +10,7 @@ import subprocess
 
 from multiprocessing import Process
 
-OUTPUT_DIR = "../out/perflow_bernoulli_cores_1-100_fcfs_ps/"
+OUTPUT_DIR = "../out/"
 
 
 def main():
@@ -20,7 +20,7 @@ def main():
     core_count = [1]
     host_types = ["perflow"]
     deq_costs = [0.0]
-    queue_policies = ['FlowQueues']
+    queue_policies = ['SLOFlowQueues']
 
     batch_run = 5
 
@@ -31,17 +31,18 @@ def main():
                         "exec_time": 20.0,
                         "heavy_per": 2,
                         "heavy_time": 20.0,
-                        "time_slice": 0.0
+                        "time_slice": 0.0,
+                        "slo": 30.0
                      },
                      {
                         "work_gen": "heavy_tail",
                         "inter_gen": "poisson_arrival",
                         "load": 0.4,
-                        "exec_time": 80.0,
+                        "exec_time": 100.0,
                         "heavy_per": 2,
-                        "heavy_time": 80.0,
+                        "heavy_time": 100.0,
                         "time_slice": 0.0,
-			"enq_front": True
+                        "slo": 150.0
                      }]]
 
     # for i in range(2,10):
@@ -104,10 +105,13 @@ def run_sim(deq_cost, host, cores, config_json, queue_policy, iterations):
                 "--deq-cost", str(deq_cost),
                 "--queue-policy", queue_policy]
 
-    throughput = []
-    per_flow_lat = []
+    per_flow_throughput = []
+    per_flow_latency = []
+    per_flow_slo = []
     for i in range(len(config_json)):
-        per_flow_lat.append([])
+        per_flow_latency.append([])
+        per_flow_throughput.append([])
+        per_flow_slo.append([])
 
     running_jobs = []
     for i in range(iterations):
@@ -116,10 +120,11 @@ def run_sim(deq_cost, host, cores, config_json, queue_policy, iterations):
 
     for p in running_jobs:
         out, err = p.communicate()
-        output = out.split("\n")[:-1]
-        throughput.append(float(output[-1]))
+        output = json.loads(out)
         for i in range(len(config_json)):
-            per_flow_lat[i].append(float(output[i]))
+            per_flow_latency[i].append(output[i]['latency'])
+            per_flow_throughput[i].append(output[i]['per_core_through'])
+            per_flow_slo[i].append(output[i]['slo_success'])
 
     # Gather the results
     output_name = (OUTPUT_DIR + "sim_" + str(cores) + "_" + str(host) + "_" +
@@ -149,28 +154,41 @@ def run_sim(deq_cost, host, cores, config_json, queue_policy, iterations):
 
         full_name += flow_name
 
-    i = 0
-    for key in range(len(config_json)):
-        flow_name = "_" + "flow" + str(key)
+    for i in range(len(config_json)):
+        flow_name = "_" + "flow" + str(i)
         flow_name = full_name + flow_name
         with open(flow_name, 'w') as f:
-            for value in per_flow_lat[i]:
+            for value in per_flow_latency[i]:
                 f.write(str(value) + "\n")
 
         flow_name = flow_name + ".total"
         with open(flow_name, 'w') as f:
-            value = sum(per_flow_lat[i]) * 1.0 / len(per_flow_lat[i])
+            value = sum(per_flow_latency[i]) * 1.0 / len(per_flow_latency[i])
             f.write(str(value) + "\n")
 
-        i += i + 1
+        flow_name = "_" + "flow" + str(i)
+        flow_name = full_name + flow_name + '.throughput'
+        with open(flow_name, 'w') as f:
+            for value in per_flow_throughput[i]:
+                f.write(str(value) + "\n")
 
-    with open(full_name + ".throughput", 'w') as f:
-        for value in throughput:
+        flow_name = flow_name + ".total"
+        with open(flow_name, 'w') as f:
+            value = (sum(per_flow_throughput[i]) * 1.0 /
+                     len(per_flow_throughput[i]))
             f.write(str(value) + "\n")
 
-    with open(full_name + ".throughput.total", 'w') as f:
-        value = sum(throughput) * 1.0 / len(throughput)
-        f.write(str(value) + "\n")
+        flow_name = "_" + "flow" + str(i)
+        flow_name = full_name + flow_name + '.slo'
+        with open(flow_name, 'w') as f:
+            for value in per_flow_slo[i]:
+                f.write(str(value) + "\n")
+
+        flow_name = flow_name + ".total"
+        with open(flow_name, 'w') as f:
+            value = (sum(per_flow_slo[i]) * 1.0 /
+                     len(per_flow_slo[i]))
+            f.write(str(value) + "\n")
 
     # Delete config file
     try:
