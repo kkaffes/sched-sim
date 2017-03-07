@@ -6,7 +6,7 @@ from hdrh.histogram import HdrHistogram
 
 class Histogram(object):
 
-    def __init__(self, num_histograms, cores, flow_config):
+    def __init__(self, num_histograms, cores, flow_config, opts):
         self.histograms = [HdrHistogram(1, 1000 * 1000, 2)
                            for i in range(num_histograms)]
         self.global_histogram = HdrHistogram(1, 1000 * 1000, 2)
@@ -14,6 +14,10 @@ class Histogram(object):
 	self.flow_config = flow_config
 	self.violations = [0 for i in range(len(flow_config))]
 	self.dropped = [0 for i in range(len(flow_config))]
+        self.print_values = opts.print_values
+        if self.print_values:
+            self.print_files = [open(opts.output_file + '_flow' + str(flow),
+                                     'w+') for flow in range(len(flow_config))]
 
     def record_value(self, flow, value):
         self.global_histogram.record_value(value)
@@ -21,6 +25,7 @@ class Histogram(object):
 	if self.flow_config[flow].get('slo'):
 	    if value > self.flow_config[flow].get('slo'):
 	        self.violations[flow] += 1
+        self.print_files[flow].write(str(value) + '\n')
 
     def print_info(self):
         info = []

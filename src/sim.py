@@ -57,6 +57,14 @@ def main():
                            ' configuration'), default='FlowQueues')
     parser.add_option_group(group)
 
+    group = optparse.OptionGroup(parser, 'Print Options')
+    group.add_option('--print-values', dest='print_values',
+                     action='store_true', help='Print all the latencies for'
+                     ' each flow', default=False)
+    group.add_option('--output-file', dest='output_file', action='store',
+                     help='File to print all latencies', default=None)
+    parser.add_option_group(group)
+
     opts, args = parser.parse_args()
 
     # Setup logging
@@ -74,7 +82,8 @@ def main():
     flow_config = json.loads(open(opts.work_conf).read())
 
     # Create a histogram per flow and a global histogram
-    histograms = Histogram(len(flow_config), float(opts.cores), flow_config)
+    histograms = Histogram(len(flow_config), float(opts.cores), flow_config,
+                           opts)
 
     # Get the queue configuration
     host_conf = getattr(sys.modules[__name__], gen_dict[opts.host_type])
