@@ -39,15 +39,19 @@ class FIFORequestQueue(RequestQueue):
 
 class PerFlowRequestQueue(RequestQueue):
 
-    def __init__(self, env, size):
+    def __init__(self, env, size, slo, load_ratio, num_cores):
         super(PerFlowRequestQueue, self).__init__(env, size)
         # TODO: If size is finite
         self.q = collections.deque()
-        self.expected_length = 0
+        self.expected_length = 0.0
+        self.slo = slo
+        self.load_ratio = load_ratio
+        self.num_cores = num_cores
 
     def enqueue(self, request):
         self.q.append(request)
         self.expected_length += request.expected_length
+        return True
 
     def enqueue_front(self, request):
         self.q.appendleft(request)
@@ -64,16 +68,38 @@ class PerFlowRequestQueue(RequestQueue):
         self.expected_length -= request.expected_length
         return request
 
+    def get_load(self):
+        if self.empty():
+            return 0
+        else:
+            return (self.expected_length / self.slo / (self.load_ratio *
+                                                       self.num_cores))
 
-class FlowQueues(RequestQueue):
 
-    def __init__(self, env, size, dequeue_time, flow_config):
-        super(FlowQueues, self).__init__(env, size)
+class DropFlowRequestQueue(PerFlowRequestQueue):
+
+    def enqueue(self, request):
+        self.expected_length += request.expected_length
+        if self.get_load() > 1.0:
+            self.expected_length -= request.expected_length
+            return False
+        else:
+            self.q.append(request)
+            return True
+
+
+class SLOFlowQueues(RequestQueue):
+
+    def __init__(self, env, size, dequeue_time, flow_config, num_cores):
+        super(SLOFlowQueues, self).__init__(env, size)
         # TODO: If size is finite
         self.q = []
+        loads = [flow['load'] for flow in flow_config]
+        load_ratios = [load / sum(loads) for load in loads]
         for flow in range(len(flow_config)):
-            self.q.append(PerFlowRequestQueue(env, size))
-        self.flow_config = flow_config
+            self.q.append(PerFlowRequestQueue(env, size,
+                                              flow_config[flow]['slo'],
+                                              load_ratios[flow], num_cores))
         self.dequeue_time = dequeue_time
 
         # Assume queues can only be accessed once at a time
@@ -81,7 +107,7 @@ class FlowQueues(RequestQueue):
         self.resource = simpy.Resource(env, capacity=1)
 
     def enqueue(self, request):
-        self.q[request.flow_id].enqueue(request)
+        return self.q[request.flow_id].enqueue(request)
 
     def enqueue_front(self, request):
         self.q[request.flow_id].enqueue_front(request)
@@ -114,39 +140,45 @@ class FlowQueues(RequestQueue):
         return max_index
 
 
-class SLOFlowQueues(FlowQueues):
+class SLOPerFlowQueues(SLOFlowQueues):
 
     def get_max_queue(self):
-        # Get the key of the flow which is closest to violating the SLO
-        min_value = float('inf')
-        min_index = 0
-
-        for flow in range(len(self.q)):
-            if not self.q[flow].empty():
-                cur_value = (self.flow_config[flow]['slo'] -
-                             self.q[flow].expected_length)
-                if cur_value <= min_value:
-                    min_index = flow
-                    min_value = cur_value
-        logging.debug("Dequeuing request from flow {} with slack {}".
-                      format(min_index, min_value))
-        return min_index
-
-
-class SLOPerFlowQueues(FlowQueues):
-
-    def get_max_queue(self):
-        # Get the key of the flow which is closest to violating the SLO
+        # Get the key of the flow with the longest queue
         max_value = 0
         max_index = 0
-
         for flow in range(len(self.q)):
-            if not self.q[flow].empty():
-                cur_value = (self.q[flow].expected_length /
-                             self.flow_config[flow]['slo'])
-                if cur_value >= max_value:
-                    max_index = flow
-                    max_value = cur_value
-        logging.debug("Dequeuing request from flow {} with percentage {}".
+            if self.q[flow].get_load() >= max_value:
+                max_index = flow
+                max_value = self.q[flow].get_load()
+        logging.debug("Dequeuing request from flow {} with length {}".
+                      format(max_index, max_value))
+        return max_index
+
+
+class SLODropFlowQueues(SLOFlowQueues):
+
+    def __init__(self, env, size, dequeue_time, flow_config, num_cores):
+        self.env = env
+        # TODO: If size is finite
+        self.size = size
+        self.q = []
+        loads = [flow['load'] for flow in flow_config]
+        load_ratios = [load / sum(loads) for load in loads]
+        for flow in range(len(flow_config)):
+            self.q.append(DropFlowRequestQueue(env, size,
+                                               flow_config[flow]['slo'],
+                                               load_ratios[flow], num_cores))
+        self.dequeue_time = dequeue_time
+        self.resource = simpy.Resource(env, capacity=1)
+
+    def get_max_queue(self):
+        # Get the key of the flow with the longest queue
+        max_value = 0
+        max_index = 0
+        for flow in range(len(self.q)):
+            if self.q[flow].get_load() >= max_value:
+                max_index = flow
+                max_value = self.q[flow].get_load()
+        logging.debug("Dequeuing request from flow {} with length {}".
                       format(max_index, max_value))
         return max_index

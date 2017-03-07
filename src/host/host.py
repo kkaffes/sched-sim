@@ -152,7 +152,8 @@ class PerFlowQueueHost(object):
         self.env = env
         self.core_group = CoreGroup()
         queue_policy = getattr(sys.modules[__name__], opts.queue_policy)
-        self.queue = queue_policy(env, -1, deq_cost, flow_config)
+        self.queue = queue_policy(env, -1, deq_cost, flow_config, num_cores)
+        self.histograms = histograms
 
         for i in range(num_cores):
             new_core = CoreScheduler(env, histograms, i, flow_config)
@@ -163,7 +164,9 @@ class PerFlowQueueHost(object):
     def receive_request(self, request):
         logging.debug('Host: Received request %d from flow %d at %f' %
                       (request.idx, request.flow_id, self.env.now))
-        self.queue.enqueue(request)
+        if not self.queue.enqueue(request):
+            self.histograms.drop_request(request.flow_id)
+            return
 
         # Putting active cores into list
         activate_core = self.core_group.pop_one_idle_core()

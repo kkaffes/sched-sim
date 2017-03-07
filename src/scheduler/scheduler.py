@@ -174,16 +174,25 @@ class CoreScheduler(object):
 
             request = self.queue.dequeue()
 
-            p = None
-            if request is not None:
-                p = self.env.process(self.process_request(request))
-                # Take into account the dequeuing cost
-                yield self.env.timeout(self.queue.dequeue_time)
+            total_time = self.env.now - request.start_time + request.exec_time
+            target_slo = self.flow_config[request.flow_id].get('slo',
+                                                               float('inf'))
+            if ((total_time > target_slo and
+                 self.flow_config[request.flow_id].get('drop'))):
+                self.histograms.drop_request(request.flow_id)
+                self.env.timeout(0.0)
+                self.queue.resource.release(req)
+            else:
+                p = None
+                if request is not None:
+                    p = self.env.process(self.process_request(request))
+                    # Take into account the dequeuing cost
+                    yield self.env.timeout(self.queue.dequeue_time)
 
-            self.queue.resource.release(req)
+                    self.queue.resource.release(req)
 
-            if p:
-                yield p
+                if p:
+                    yield p
 
         logging.debug("CoreScheduler: Core {} becomes idle at {}"
                       .format(self.core_id, self.env.now))
