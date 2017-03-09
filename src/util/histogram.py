@@ -25,13 +25,14 @@ class Histogram(object):
 	if self.flow_config[flow].get('slo'):
 	    if value > self.flow_config[flow].get('slo'):
 	        self.violations[flow] += 1
-        self.print_files[flow].write(str(value) + '\n')
+        if self.print_values:
+            self.print_files[flow].write(str(value) + '\n')
 
     def print_info(self):
         info = []
         for i in range(len(self.histograms)):
             # Add the dropped requests as max time
-            max_value = self.histograms[i].get_max_value
+            max_value = self.histograms[i].get_max_value()
             for j in range(self.dropped[i]):
                 self.histograms[i].record_value(max_value)
 
