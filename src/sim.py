@@ -6,7 +6,7 @@ import simpy
 import logging
 import optparse
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from util.histogram import Histogram
 
 from host.host import *
@@ -121,18 +121,18 @@ def main():
     # Run the simulation
     env.run(until=50000)
 
-    if opts.hist:
-        # Ploting out values
-        # TODO. update if wanna see histogram
-        values = []
-        for item in histogram[0].get_recorded_iterator():
-            values.extend([item.value_iterated_to] *
-                          item.count_added_in_this_iter_step)
-        plt.hist(values)
-        plt.title('Latency histogram')
-        plt.xlabel('Latency (ticks)')
-        plt.ylabel('Frequency')
-        plt.show()
+    # if opts.hist:
+        # # Ploting out values
+        # # TODO. update if wanna see histogram
+        # values = []
+        # for item in histogram[0].get_recorded_iterator():
+            # values.extend([item.value_iterated_to] *
+                          # item.count_added_in_this_iter_step)
+        # plt.hist(values)
+        # plt.title('Latency histogram')
+        # plt.xlabel('Latency (ticks)')
+        # plt.ylabel('Frequency')
+        # plt.show()
 
     # Print results in json format
     histograms.print_info()
