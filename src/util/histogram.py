@@ -11,9 +11,9 @@ class Histogram(object):
                            for i in range(num_histograms)]
         self.global_histogram = HdrHistogram(1, 1000 * 1000, 2)
         self.cores = cores
-	self.flow_config = flow_config
-	self.violations = [0 for i in range(len(flow_config))]
-	self.dropped = [0 for i in range(len(flow_config))]
+        self.flow_config = flow_config
+        self.violations = [0 for i in range(len(flow_config))]
+        self.dropped = [0 for i in range(len(flow_config))]
         self.print_values = opts.print_values
         if self.print_values:
             self.print_files = [open(opts.output_file + '_flow' + str(flow),
@@ -22,9 +22,9 @@ class Histogram(object):
     def record_value(self, flow, value):
         self.global_histogram.record_value(value)
         self.histograms[flow].record_value(value)
-	if self.flow_config[flow].get('slo'):
-	    if value > self.flow_config[flow].get('slo'):
-	        self.violations[flow] += 1
+        if self.flow_config[flow].get('slo'):
+            if value > self.flow_config[flow].get('slo'):
+                self.violations[flow] += 1
         if self.print_values:
             self.print_files[flow].write(str(value) + '\n')
 
