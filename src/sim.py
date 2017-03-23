@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import numpy as np
 import sys
 import json
 import simpy
@@ -40,6 +41,10 @@ def main():
                       help='Print request latency histogram', default=False)
     parser.add_option('-c', '--cores', dest='cores', action='store',
                       help='Set the number of cores of the system', default=8)
+    parser.add_option('-s', '--seed', dest='seed', action='store',
+                      help='Set the seed for request generator')
+    parser.add_option('-t', '--sim_time', dest='sim_time', action='store',
+                      help='Set the simulation time', default=500000)
     parser.add_option('--workload-conf', dest='work_conf', action='store',
                       help='Configuration file for the load generation'
                       ' functions', default="../config/work.json")
@@ -66,6 +71,11 @@ def main():
     parser.add_option_group(group)
 
     opts, args = parser.parse_args()
+
+    # Seeding
+    if opts.seed:
+        random.seed(int(opts.seed))
+        np.random.seed(int(opts.seed))
 
     # Setup logging
     log_level = logging.WARNING
@@ -119,7 +129,7 @@ def main():
     multigenerator.begin_generation()
 
     # Run the simulation
-    env.run(until=50000)
+    env.run(until=opts.sim_time)
 
     # Print results in json format
     histograms.print_info()

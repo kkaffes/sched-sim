@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
 import os
-import sys
 import copy
 import json
 import time
+import math
+import random
 import tempfile
 import subprocess
 
@@ -12,44 +13,59 @@ from multiprocessing import Process
 
 OUTPUT_DIR = "../out/"
 
-
 def main():
+    global OUTPUT_DIR
     # Set the simulation parameters
     iterations = 20
     core_count = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 50, 75, 100]
-    core_count = [1]
     host_types = ["perflow"]
     deq_costs = [0.0]
     queue_policies = ['SLOFlowQueues']
 
-    batch_run = 5
+    cores_to_run = 24
+    batch_run = math.ceil(float(cores_to_run) / iterations)
 
-    config_jsons = [[{
-                        "work_gen": "heavy_tail",
-                        "inter_gen": "poisson_arrival",
-                        "load": 0.4,
-                        "exec_time": 20.0,
-                        "heavy_per": 2,
-                        "heavy_time": 20.0,
-                        "time_slice": 0.0,
-                        "slo": 30.0
-                     },
-                     {
-                        "work_gen": "heavy_tail",
-                        "inter_gen": "poisson_arrival",
-                        "load": 0.4,
-                        "exec_time": 100.0,
-                        "heavy_per": 2,
-                        "heavy_time": 100.0,
-                        "time_slice": 0.0,
-                        "slo": 150.0
-                     }]]
+    # Sanity check
+    if not OUTPUT_DIR.endswith("/"):
+        OUTPUT_DIR += "/"
 
-    # for i in range(2,10):
-    #    temp_conf = copy.deepcopy(config_jsons[0])
-    #    temp_conf[1]["exec_time"] = i * 2.0
-    #    temp_conf[1]["heavy_time"] = i * 2.0
-    #    config_jsons.append(temp_conf)
+    # Create folder if it doesn't exist
+    if not os.path.exists(OUTPUT_DIR):
+        os.makedirs(OUTPUT_DIR)
+
+    if len([name for name in os.listdir(OUTPUT_DIR)]) != 0:
+        cont = raw_input("Files detected inside target folder."
+                         " Are you sure you want to continue? (Y to continue): ")
+        if cont.lower() != "y":
+            exit()
+
+    config_jsons = []
+    default_json = [{
+        "work_gen": "heavy_tail",
+        "inter_gen": "poisson_arrival",
+        "load": 0.4,
+        "exec_time": 20.0,
+        "heavy_per": 2,
+        "heavy_time": 20.0,
+        "time_slice": 0.0,
+        "slo": 30.0
+        },
+        {
+            "work_gen": "heavy_tail",
+            "inter_gen": "poisson_arrival",
+            "load": 0.4,
+            "exec_time": 100.0,
+            "heavy_per": 2,
+            "heavy_time": 100.0,
+            "time_slice": 0.0,
+            "slo": 150.0
+            }]
+
+    for i in range(2, 10):
+        temp_conf = copy.deepcopy(default_json)
+        temp_conf[0]["exec_time"] = i * 2.0
+        temp_conf[0]["heavy_time"] = i * 2.0
+        config_jsons.append(temp_conf)
 
     # for i in range(1,11):
     #    temp_conf = copy.deepcopy(config_jsons[0])
@@ -57,6 +73,7 @@ def main():
     #    temp_conf[1]["heavy_time"] = i * 20.0
     #    config_jsons.append(temp_conf)
 
+    seeds = [random.randint(1, 1e9) for i in range(iterations)]
     idle = []
     running = []
     for deq_cost in deq_costs:
@@ -67,7 +84,8 @@ def main():
                         p = Process(target=run_sim, args=(deq_cost, host,
                                                           cores, config_json,
                                                           queue_policy,
-                                                          iterations))
+                                                          iterations,
+                                                          seeds))
                         idle.append(p)
 
     # Running phase
@@ -91,7 +109,8 @@ def main():
         run.join()
 
 
-def run_sim(deq_cost, host, cores, config_json, queue_policy, iterations):
+def run_sim(deq_cost, host, cores, config_json, queue_policy,
+            iterations, seeds):
     # Create config file
     conf, config_file = tempfile.mkstemp()
     os.write(conf, json.dumps(config_json))
@@ -115,7 +134,9 @@ def run_sim(deq_cost, host, cores, config_json, queue_policy, iterations):
 
     running_jobs = []
     for i in range(iterations):
-        p = subprocess.Popen(sim_args, stdout=subprocess.PIPE)
+        arg = copy.deepcopy(sim_args)
+        arg.extend(["-s", str(seeds[i])])
+        p = subprocess.Popen(arg, stdout=subprocess.PIPE)
         running_jobs.append(p)
 
     for p in running_jobs:
@@ -135,21 +156,21 @@ def run_sim(deq_cost, host, cores, config_json, queue_policy, iterations):
         flow_name = ("_" + "flow" + str(key) + "_" + str(val["work_gen"]) +
                      "_" + str(val["inter_gen"]) + "_" + str(val["load"]))
 
-        if val.get("mean"):
+        if val.get("mean") is not None:
             flow_name += "_" + str(val["mean"])
-        if val.get("std_dev_request"):
+        if val.get("std_dev_request") is not None:
             flow_name += "_" + str(val["std_dev_request"])
-        if val.get("exec_time"):
+        if val.get("exec_time") is not None:
             flow_name += "_" + str(val["exec_time"])
-        if val.get("heavy_per"):
+        if val.get("heavy_per") is not None:
             flow_name += "_" + str(val["heavy_per"])
-        if val.get("heavy_time"):
+        if val.get("heavy_time") is not None:
             flow_name += "_" + str(val["heavy_time"])
-        if val.get("std_dev_arrival"):
+        if val.get("std_dev_arrival") is not None:
             flow_name += "_" + str(val["std_dev_arrival"])
-        if val.get("time_slice"):
+        if val.get("time_slice") is not None:
             flow_name += "_" + str(val["time_slice"])
-        if val.get("enq_front"):
+        if val.get("enq_front") is not None:
             flow_name += "_enqfront" + str(val["enq_front"])
 
         full_name += flow_name
