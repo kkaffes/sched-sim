@@ -61,12 +61,20 @@ class PerFlowRequestQueue(RequestQueue):
         return len(self.q) == 0
 
     def dequeue(self):
-        if len(self.q) == 0:
+        if self.empty():
             return None
 
         request = self.q.popleft()
         self.expected_length -= request.expected_length
         return request
+
+    def get_first_packet_latency(self):
+        if self.empty():
+            return 0
+
+        request = self.q[0]
+        return ((self.env.now - request.start_time + request.exec_time) /
+                self.slo)
 
     def get_load(self):
         if self.empty():
@@ -155,7 +163,7 @@ class SLOPerFlowQueues(SLOFlowQueues):
         return max_index
 
 
-class SLODropFlowQueues(SLOFlowQueues):
+class SLODropFlowQueues(SLOPerFlowQueues):
 
     def __init__(self, env, size, dequeue_time, flow_config, num_cores):
         self.env = env
@@ -171,14 +179,35 @@ class SLODropFlowQueues(SLOFlowQueues):
         self.dequeue_time = dequeue_time
         self.resource = simpy.Resource(env, capacity=1)
 
+
+class SLOFirstPacketFlowQueues(SLOFlowQueues):
+
     def get_max_queue(self):
-        # Get the key of the flow with the longest queue
+        # Get the key of the queue whose first packet is closest to violating
+        # its SLO.
         max_value = 0
         max_index = 0
         for flow in range(len(self.q)):
-            if self.q[flow].get_load() >= max_value:
+            if self.q[flow].get_first_packet_latency() >= max_value:
                 max_index = flow
-                max_value = self.q[flow].get_load()
-        logging.debug("Dequeuing request from flow {} with length {}".
-                      format(max_index, max_value))
+                max_value = self.q[flow].get_first_packet_latency()
+        logging.debug("Dequeuing request from flow {} with first packet slo"
+                      " metric {}". format(max_index, max_value))
         return max_index
+
+
+class SLODropFirstPacketFlowQueues(SLOFirstPacketFlowQueues):
+
+    def __init__(self, env, size, dequeue_time, flow_config, num_cores):
+        self.env = env
+        # TODO: If size is finite
+        self.size = size
+        self.q = []
+        loads = [flow['load'] for flow in flow_config]
+        load_ratios = [load / sum(loads) for load in loads]
+        for flow in range(len(flow_config)):
+            self.q.append(DropFlowRequestQueue(env, size,
+                                               flow_config[flow]['slo'],
+                                               load_ratios[flow], num_cores))
+        self.dequeue_time = dequeue_time
+        self.resource = simpy.Resource(env, capacity=1)
