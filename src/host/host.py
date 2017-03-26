@@ -3,6 +3,7 @@ import logging
 from queue.request_queue import *
 from scheduler.scheduler import *
 from scheduler.load_balancer import LoadBalancer
+from queue.dequeue_policy import *
 
 
 class CoreGroup(object):
@@ -53,7 +54,7 @@ class GlobalQueueHost(object):
 
         self.env = env
         self.core_group = CoreGroup()
-        self.queue = FIFORequestQueue(env, -1, deq_cost)
+        self.queue = FIFORequestQueue(env, -1, deq_cost, flow_config)
 
         for i in range(num_cores):
             new_core = CoreScheduler(env, histograms, i, flow_config)
@@ -88,7 +89,7 @@ class MultiQueueHost(object):
 
         # Generate queues and cpus
         for i in range(num_queues):
-            new_queue = FIFORequestQueue(env, -1, deq_cost)
+            new_queue = FIFORequestQueue(env, -1, deq_cost, flow_config)
             new_core = CoreScheduler(env, histograms, i, flow_config)
 
             new_core.set_queue(new_queue)
@@ -117,7 +118,7 @@ class ShinjukuHost(object):
     def __init__(self, env, num_cores, histograms, deq_cost, flow_config,
                  opts):
         self.env = env
-        self.queue = FIFORequestQueue(env, -1, deq_cost)
+        self.queue = FIFORequestQueue(env, -1, deq_cost, flow_config)
 
         self.shinjuku = ShinjukuScheduler(env, histograms, flow_config)
 
@@ -146,25 +147,38 @@ class ShinjukuHost(object):
 
 
 class PerFlowQueueHost(object):
-
     def __init__(self, env, num_cores, histograms, deq_cost, flow_config,
                  opts):
         self.env = env
         self.core_group = CoreGroup()
+        self.queues = None
+
         queue_policy = getattr(sys.modules[__name__], opts.queue_policy)
-        self.queue = queue_policy(env, -1, deq_cost, flow_config, num_cores)
+        loads = [flow['load'] for flow in flow_config]
+        load_ratios = [load / sum(loads) for load in loads]
+
+        # FIXME: if we want other per flow request queue type
+        self.queues = PerFlowRequestQueueGroup(env, deq_cost, flow_config)
+        for flow in range(len(flow_config)):
+            self.queues.add_queue(PerFlowRequestQueue(env, -1,
+                                              load_ratios[flow], num_cores,
+                                              flow_config[flow]))
+
+        self.dequeue_policy = queue_policy(env, self.queues)
+        self.queues.set_dequeue_policy(self.dequeue_policy)
+
         self.histograms = histograms
 
         for i in range(num_cores):
             new_core = CoreScheduler(env, histograms, i, flow_config)
-            new_core.set_queue(self.queue)
+            new_core.set_queue(self.queues)
             new_core.set_host(self)
             self.core_group.append_idle_core(new_core)
 
     def receive_request(self, request):
         logging.debug('Host: Received request %d from flow %d at %f' %
                       (request.idx, request.flow_id, self.env.now))
-        if not self.queue.enqueue(request):
+        if not self.queues.enqueue(request):
             self.histograms.drop_request(request.flow_id)
             return
 
@@ -193,7 +207,7 @@ class StaticCoreAllocationHost(object):
         total_cores = 0
 
         for i in range(num_flows):
-            new_queue = FIFORequestQueue(env, -1, deq_cost)
+            new_queue = FIFORequestQueue(env, -1, deq_cost, flow_config)
             proportion = loads[i] / total_load
             num_core = int(round(num_cores * proportion))
             total_cores += num_core

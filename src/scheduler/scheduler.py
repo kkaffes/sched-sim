@@ -59,7 +59,7 @@ class ShinjukuScheduler(object):
         done_request = core.remove_request()
         self.core_group.core_become_idle(core, done_request)
         if done_request.exec_time != 0:
-            self.queue.enqueue(done_request)
+            self.queue.renqueue(done_request)
             logging.debug("Shinjuku: Request {} re-added to queue at {}"
                           .format(done_request.idx, self.env.now))
         else:
@@ -145,11 +145,11 @@ class CoreScheduler(object):
 
             # FIXME Add enqueue cost/lock
             # Add the unfinished request to the queue
-            enq_front = self.flow_config[request.flow_id].get('enq_front')
-            if enq_front:
-                self.queue.enqueue_front(request)
-            else:
-                self.queue.enqueue(request)
+            # print request
+            # print request.idx
+            # print self.queue.q
+            self.queue.renqueue(request)
+            # print self.queue.q
 
     # Start up if not already looping
     def become_active(self):

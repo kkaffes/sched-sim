@@ -5,7 +5,8 @@ import sys
 import json
 import simpy
 import logging
-import optparse
+import argparse
+
 
 # import matplotlib.pyplot as plt
 from util.histogram import Histogram
@@ -32,45 +33,46 @@ gen_dict = {
 
 
 def main():
-    parser = optparse.OptionParser()
+    # parser = optparse.OptionParser()
+    parser = argparse.ArgumentParser(description='')
 
-    parser.add_option('-v', '--verbose', dest='verbose',
+
+    parser.add_argument('-v', '--verbose', dest='verbose',
                       action='count', help='Increase verbosity (specify'
                       ' multiple times for more)')
-    parser.add_option('-g', '--print-hist', action='store_true', dest='hist',
+    parser.add_argument('-g', '--print-hist', action='store_true', dest='hist',
                       help='Print request latency histogram', default=False)
-    parser.add_option('-c', '--cores', dest='cores', action='store',
+    parser.add_argument('-c', '--cores', dest='cores', action='store',
                       help='Set the number of cores of the system', default=8)
-    parser.add_option('-s', '--seed', dest='seed', action='store',
+    parser.add_argument('-s', '--seed', dest='seed', action='store',
                       help='Set the seed for request generator')
-    parser.add_option('-t', '--sim_time', dest='sim_time', action='store',
+    parser.add_argument('-t', '--sim_time', dest='sim_time', action='store',
                       help='Set the simulation time', default=500000)
-    parser.add_option('--workload-conf', dest='work_conf', action='store',
+    parser.add_argument('--workload-conf', dest='work_conf', action='store',
                       help='Configuration file for the load generation'
                       ' functions', default="../config/work.json")
 
-    group = optparse.OptionGroup(parser, 'Host Options')
-    group.add_option('--host-type', dest='host_type', action='store',
+    group = parser.add_argument_group('Host Options')
+    group.add_argument('--host-type', dest='host_type', action='store',
                      help=('Set the host configuration (global queue,'
                            ' local queue, shinjuku, per flow queues,'
                            ' static core allocation)'), default='global')
-    group.add_option('--deq-cost', dest='deq_cost', action='store',
+    group.add_argument('--deq-cost', dest='deq_cost', action='store',
                      help='Set the dequeuing cost', default=0.0)
-    group.add_option('--queue-policy', dest='queue_policy', action='store',
+    group.add_argument('--queue-policy', dest='queue_policy', action='store',
                      help=('Set the queue policy to be followed by the per'
                            ' flow queue, ignored in any other queue'
                            ' configuration'), default='FlowQueues')
-    parser.add_option_group(group)
+    parser.add_argument_group(group)
 
-    group = optparse.OptionGroup(parser, 'Print Options')
-    group.add_option('--print-values', dest='print_values',
+    group = parser.add_argument_group('Print Options')
+    group.add_argument('--print-values', dest='print_values',
                      action='store_true', help='Print all the latencies for'
                      ' each flow', default=False)
-    group.add_option('--output-file', dest='output_file', action='store',
+    group.add_argument('--output-file', dest='output_file', action='store',
                      help='File to print all latencies', default=None)
-    parser.add_option_group(group)
 
-    opts, args = parser.parse_args()
+    opts = parser.parse_args()
 
     # Seeding
     if opts.seed:
