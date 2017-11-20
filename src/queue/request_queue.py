@@ -94,6 +94,14 @@ class PerFlowRequestQueue(RequestQueue):
         return ((self.env.now - request.start_time + request.exec_time) /
                 self.slo)
 
+    def get_first_packet_wait(self):
+        if self.empty():
+            return -1
+
+        request = self.q[0]
+        return ((self.env.now - request.start_time) /
+                self.slo)
+
     def get_load(self):
         if self.empty():
             return 0

@@ -63,6 +63,20 @@ class FirstPacketLatencyDequeuePolicy(SelectDequeuePolicy):
                       " metric {}". format(max_index, max_value))
         return max_index
 
+class FirstPacketWaitDequeuePolicy(SelectDequeuePolicy):
+    def select_queue(self):
+        # Get the key of the queue whose first packet is closest to violating
+        # its SLO knowing only its wait time.
+        max_value = 0
+        max_index = 0
+        for flow in range(len(self.queues)):
+            if self.queues[flow].get_first_packet_wait() >= max_value:
+                max_index = flow
+                max_value = self.queues[flow].get_first_packet_wait()
+        logging.debug("Dequeuing request from flow {} with first packet wait"
+                      " metric {}". format(max_index, max_value))
+        return max_index
+
 class RoundRobinDequeuePolicy(SelectDequeuePolicy):
     current_q = -1
     num_queues = -1
@@ -88,5 +102,4 @@ class RoundRobinDequeuePolicy(SelectDequeuePolicy):
 
         logging.debug("Dequeuing request from flow {} "
                       "with Round Robin".format(choose))
-        print choose
         return choose

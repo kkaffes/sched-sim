@@ -11,18 +11,20 @@ import subprocess
 
 from multiprocessing import Process
 
-OUTPUT_DIR = "../out/"
+OUTPUT_DIR = \
+    "../../out/fall2017/perflow_queue_longest_load_exponential_lognormal_same_mean"
 
 def main():
     global OUTPUT_DIR
     # Set the simulation parameters
-    iterations = 20
-    core_count = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 50, 75, 100]
-    host_types = ["perflow"]
+    iterations = 10
+    core_count = [32]
+    host_types = ['perflow']
     deq_costs = [0.0]
-    queue_policies = ['SLOFlowQueues']
+    queue_policies = ['LongestLoadDequeuePolicy']
 
-    cores_to_run = 24
+
+    cores_to_run = 64
     batch_run = math.ceil(float(cores_to_run) / iterations)
 
     # Sanity check
@@ -33,47 +35,40 @@ def main():
     if not os.path.exists(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
 
-    if len([name for name in os.listdir(OUTPUT_DIR)]) != 0:
-        cont = raw_input("Files detected inside target folder."
-                         " Are you sure you want to continue? (Y to continue): ")
-        if cont.lower() != "y":
-            exit()
-
     config_jsons = []
     default_json = [{
-        "work_gen": "heavy_tail",
+        "work_gen": "exponential_request",
         "inter_gen": "poisson_arrival",
-        "load": 0.4,
-        "exec_time": 20.0,
-        "heavy_per": 2,
-        "heavy_time": 20.0,
-        "time_slice": 0.0,
-        "slo": 30.0
-        },
-        {
-            "work_gen": "heavy_tail",
-            "inter_gen": "poisson_arrival",
-            "load": 0.4,
-            "exec_time": 100.0,
-            "heavy_per": 2,
-            "heavy_time": 100.0,
-            "time_slice": 0.0,
-            "slo": 150.0
-            }]
+        "mean": 2.0,
+        "load": 0.9,
+        "slo": 9.0,
+        "time_slice": 2.0,
+        "enq_front": True
+        }, {
+        "work_gen": "lognormal_request",
+        "inter_gen": "poisson_arrival",
+        "mean": 2.0,
+        "std_dev_request": 20.0,
+        "load": 0.9,
+        "slo": 33.2,
+        "time_slice": 2.0,
+        "enq_front": False
+        }]
 
-    for i in range(2, 10):
-        temp_conf = copy.deepcopy(default_json)
-        temp_conf[0]["exec_time"] = i * 2.0
-        temp_conf[0]["heavy_time"] = i * 2.0
-        config_jsons.append(temp_conf)
+    loads = [0.3, 0.45, 0.6]
+    for i in loads:
+        for j in loads:
+            if (i + j) < 0.91:
+                temp_conf = copy.deepcopy(default_json)
+                temp_conf[0]["load"] = i
+                temp_conf[1]["load"] = j
+                config_jsons.append(temp_conf)
 
-    # for i in range(1,11):
-    #    temp_conf = copy.deepcopy(config_jsons[0])
-    #    temp_conf[1]["exec_time"] = i * 20.0
-    #    temp_conf[1]["heavy_time"] = i * 20.0
-    #    config_jsons.append(temp_conf)
+    seeds = [497577696, 308484504, 976250624, 331509278, 373072862, 494155711,
+             64603035, 414537690, 712438709, 566941566, 356444130, 198904022,
+             906581464, 44964761, 931163827, 797805274, 344646089, 387905473,
+             298058383, 664246766]
 
-    seeds = [random.randint(1, 1e9) for i in range(iterations)]
     idle = []
     running = []
     for deq_cost in deq_costs:
@@ -117,7 +112,7 @@ def run_sim(deq_cost, host, cores, config_json, queue_policy,
     os.close(conf)
 
     # Run the simulation
-    sim_args = ["../src/sim.py",
+    sim_args = ["../../src/sim.py",
                 "--cores", str(cores),
                 "--workload-conf", str(config_file),
                 "--host-type", str(host),
