@@ -82,7 +82,7 @@ class HeavyTailRequestGenerator(RequestGenerator):
 
             # Generate request
             # NOTE Percentage must be integer
-            is_heavy = random.randint(0, 99) < self.heavy_percent
+            is_heavy = random.randint(0, 999) < self.heavy_percent * 10
             exec_time = self.heavy_exec_time if is_heavy else self.exec_time
             self.host.receive_request(Request(idx, exec_time, self.env.now,
                                               self.flow_id, self.mean))

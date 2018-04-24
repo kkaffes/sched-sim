@@ -137,7 +137,9 @@ class CoreScheduler(object):
                           ' at {}'.format(request.idx, self.core_id,
                                           self.env.now))
         else:
-            yield self.env.timeout(time_slice)
+            yield self.env.timeout(time_slice +
+                                   self.flow_config[request.flow_id].
+                                   get('preemption'))
             request.exec_time -= time_slice
             request.expected_length -= time_slice
             logging.debug('Scheduler: Request {} preempted at core {} at {}'
