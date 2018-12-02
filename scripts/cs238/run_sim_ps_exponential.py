@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 import os
 import copy
@@ -11,20 +11,18 @@ import subprocess
 
 from multiprocessing import Process
 
-OUTPUT_DIR = \
-    "../../out/fall2017/perflow_queue_first_packet_wait_exponential_lognormal_same_mean"
+OUTPUT_DIR = "../../out/cs238/ps_exponential/"
 
 def main():
     global OUTPUT_DIR
     # Set the simulation parameters
     iterations = 10
     core_count = [1]
-    host_types = ['perflow']
+    host_types = ['global']
     deq_costs = [0.0]
-    queue_policies = ['FirstPacketWaitDequeuePolicy']
+    queue_policies = ['placeholder']
 
-
-    cores_to_run = 64
+    cores_to_run = 12
     batch_run = math.ceil(float(cores_to_run) / iterations)
 
     # Sanity check
@@ -39,30 +37,19 @@ def main():
     default_json = [{
         "work_gen": "exponential_request",
         "inter_gen": "poisson_arrival",
-        "mean": 2.0,
+        "mean": 1.0,
         "load": 0.9,
-        "slo": 95.7,
-        "time_slice": 2.0,
-        "enq_front": True
-        }, {
-        "work_gen": "lognormal_request",
-        "inter_gen": "poisson_arrival",
-        "mean": 2.0,
-        "std_dev_request": 20.0,
-        "load": 0.9,
-        "slo": 271.7,
-        "time_slice": 2.0,
+        "time_slice": 0.1,
+        "preemption": 0.0,
         "enq_front": False
-        }]
+        }] 
 
-    loads = [0.3, 0.45, 0.6]
+    loads = [0.05 * i for i in range(1,19)]
+    loads += [0.95, 0.96, 0.97, 0.98, 0.99]
     for i in loads:
-        for j in loads:
-            if (i + j) < 0.91:
-                temp_conf = copy.deepcopy(default_json)
-                temp_conf[0]["load"] = i
-                temp_conf[1]["load"] = j
-                config_jsons.append(temp_conf)
+        temp_conf = copy.deepcopy(default_json)
+        temp_conf[0]["load"] = i
+        config_jsons.append(temp_conf)
 
     seeds = [497577696, 308484504, 976250624, 331509278, 373072862, 494155711,
              64603035, 414537690, 712438709, 566941566, 356444130, 198904022,
