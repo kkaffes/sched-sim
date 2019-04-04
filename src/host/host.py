@@ -206,7 +206,7 @@ class StaticCoreAllocationHost(object):
         # For sanitity check
         total_cores = 0
 
-        for i in range(num_flows):
+        for i in range(len(flow_config)):
             new_queue = FIFORequestQueue(env, -1, deq_cost, flow_config)
             proportion = loads[i] / total_load
             num_core = int(round(num_cores * proportion))
@@ -229,7 +229,7 @@ class StaticCoreAllocationHost(object):
         self.queues[request.flow_id - 1].enqueue(request)
 
         # Put active cores into list
-        activate_core = self.core_groups[request.flow_id1].\
+        activate_core = self.core_groups[request.flow_id].\
             pop_one_idle_core()
         if activate_core:
             self.env.process(activate_core.become_active())
