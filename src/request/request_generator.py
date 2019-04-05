@@ -57,6 +57,33 @@ class MultipleRequestGenerator(object):
         self.idx += 1
 
 
+class NetworkRequestGenerator(RequestGenerator):
+    def __init__(self, env, host, inter_gen, num_cores, opts):
+        RequestGenerator.__init__(self, env, host, opts["load"], num_cores)
+        self.exec_time = opts["exec_time"]
+        self.network_time = opts["network_time"]
+
+        inv_load = 1.0 / self.load
+        mean = inv_load * (self.exec_time + self.network_time) / self.num_cores
+        self.inter_gen = inter_gen(mean, opts)
+        self.mean = self.exec_time
+
+    def run(self):
+        idx = 0
+        while True:
+            # Generate inter-arrival time
+            s = self.inter_gen.next()
+            yield self.env.timeout(s)
+
+            # Generate request
+            # NOTE Percentage must be integer
+            self.host.receive_request(Request(idx, self.exec_time,
+                                              self.network_time,
+                                              self.env.now, self.flow_id,
+                                              self.mean))
+            idx += 1
+
+
 class HeavyTailRequestGenerator(RequestGenerator):
     def __init__(self, env, host, inter_gen, num_cores, opts):
         # Tail percent of 2 means that 2% of requests require "tail latency"
@@ -84,7 +111,7 @@ class HeavyTailRequestGenerator(RequestGenerator):
             # NOTE Percentage must be integer
             is_heavy = random.randint(0, 999) < self.heavy_percent * 10
             exec_time = self.heavy_exec_time if is_heavy else self.exec_time
-            self.host.receive_request(Request(idx, exec_time, self.env.now,
+            self.host.receive_request(Request(idx, exec_time, 0, self.env.now,
                                               self.flow_id, self.mean))
 
             idx += 1
@@ -107,7 +134,7 @@ class ExponentialRequestGenerator(RequestGenerator):
 
             exec_time = np.random.exponential(self.mean)
 
-            self.host.receive_request(Request(idx, exec_time, self.env.now,
+            self.host.receive_request(Request(idx, exec_time, 0, self.env.now,
                                               self.flow_id, self.mean))
 
             idx += 1
@@ -140,6 +167,118 @@ class LogNormalRequestGenerator(RequestGenerator):
             self.host.receive_request(Request(idx, exec_time, self.env.now,
                                               self.flow_id, self.log_mean))
 
+            idx += 1
+
+
+class LogNormalNetworkLogNormalRequestGenerator(RequestGenerator):
+    def __init__(self, env, host, inter_gen, num_cores, opts):
+        RequestGenerator.__init__(self, env, host, opts["load"], num_cores)
+
+        self.scale = float(opts["std_dev_request"] ** 2)
+        self.mean = np.log(opts["mean"]**2 / np.sqrt(opts["mean"]**2 +
+                                                     self.scale))
+        self.var = np.sqrt(np.log(self.scale / opts["mean"]**2 + 1))
+
+        self.network_scale = float(opts["std_dev_network"] ** 2)
+        self.network_mean = np.log(opts["network_mean"]**2 /
+                                   np.sqrt(opts["network_mean"]**2 +
+                                           self.network_scale))
+        self.network_var = np.sqrt(np.log(self.network_scale /
+                                          opts["network_mean"]**2 + 1))
+
+        arrival_mean = (opts["mean"] + opts["network_mean"])\
+                       / self.load / self.num_cores
+
+        self.inter_gen = inter_gen(arrival_mean, opts)
+        self.log_mean = opts["mean"]
+
+    def run(self):
+        idx = 0
+        while True:
+
+            # Generate inter-arrival time
+            s = self.inter_gen.next()
+            yield self.env.timeout(s)
+
+            exec_time = np.random.lognormal(self.mean, self.var)
+            network_time = np.random.lognormal(self.network_mean,
+                                               self.network_var)
+
+            self.host.receive_request(Request(idx, exec_time, network_time,
+                                              self.env.now, self.flow_id,
+                                              self.log_mean))
+
+            idx += 1
+
+
+class NetworkLogNormalRequestGenerator(RequestGenerator):
+    def __init__(self, env, host, inter_gen, num_cores, opts):
+        RequestGenerator.__init__(self, env, host, opts["load"], num_cores)
+
+        self.scale = float(opts["std_dev_request"] ** 2)
+        self.mean = np.log(opts["mean"]**2 / np.sqrt(opts["mean"]**2 +
+                                                     self.scale))
+        self.var = np.sqrt(np.log(self.scale / opts["mean"]**2 + 1))
+
+        self.network_time = opts["network_time"]
+
+        arrival_mean = (opts["mean"] + opts["network_time"])\
+                       / self.load / self.num_cores
+
+        self.inter_gen = inter_gen(arrival_mean, opts)
+        self.log_mean = opts["mean"]
+
+    def run(self):
+        idx = 0
+        while True:
+
+            # Generate inter-arrival time
+            s = self.inter_gen.next()
+            yield self.env.timeout(s)
+
+            exec_time = np.random.lognormal(self.mean, self.var)
+
+            self.host.receive_request(Request(idx, exec_time,
+                                              self.network_time,
+                                              self.env.now, self.flow_id,
+                                              self.log_mean))
+
+            idx += 1
+
+
+class LogNormalNetworkRequestGenerator(RequestGenerator):
+    def __init__(self, env, host, inter_gen, num_cores, opts):
+        RequestGenerator.__init__(self, env, host, opts["load"], num_cores)
+        self.exec_time = opts["exec_time"]
+
+        self.network_scale = float(opts["std_dev_network"] ** 2)
+        self.network_mean = np.log(opts["network_mean"]**2 /
+                                   np.sqrt(opts["network_mean"]**2 +
+                                           self.network_scale))
+        self.network_var = np.sqrt(np.log(self.network_scale /
+                                          opts["network_mean"]**2 + 1))
+
+        inv_load = 1.0 / self.load
+        mean = inv_load * (self.exec_time + opts["network_mean"])\
+                / self.num_cores
+        self.inter_gen = inter_gen(mean, opts)
+        self.mean = self.exec_time
+
+
+    def run(self):
+        idx = 0
+        while True:
+            # Generate inter-arrival time
+            s = self.inter_gen.next()
+            yield self.env.timeout(s)
+
+            # Generate request
+            # NOTE Percentage must be integer
+            network_time = np.random.lognormal(self.network_mean,
+                                               self.network_var)
+            self.host.receive_request(Request(idx, self.exec_time,
+                                              network_time, self.env.now,
+                                              self.flow_id, self.mean))
             idx += 1
 
 

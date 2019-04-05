@@ -127,7 +127,7 @@ class CoreScheduler(object):
 
         time_slice = self.flow_config[request.flow_id].get('time_slice')
         if (time_slice == 0 or time_slice >= request.exec_time):
-            yield self.env.timeout(request.exec_time)
+            yield self.env.timeout(request.exec_time + request.network_time)
             latency = self.env.now - request.start_time
             logging.debug('Scheduler: Request {} Latency {}'.format
                           (request.idx, latency))
