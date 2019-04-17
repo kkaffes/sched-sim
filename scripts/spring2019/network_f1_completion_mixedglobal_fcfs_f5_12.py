@@ -11,14 +11,14 @@ import subprocess
 
 from multiprocessing import Process
 
-OUTPUT_DIR = "../../out/spring2019/local_queue_test/"
+OUTPUT_DIR = "../../out/spring2019/network_f1_completion_mixedglobal_fcfs_f5_12/"
 
 def main():
     global OUTPUT_DIR
     # Set the simulation parameters
     iterations = 10
     core_count = [12]
-    host_types = ['local']
+    host_types = ['mixed_global']
     deq_costs = [0.0]
     queue_policies = ['global']
 
@@ -35,11 +35,11 @@ def main():
 
     config_jsons = []
     default_json = [{
-        "work_gen": "heavy_tail",
-        "inter_gen": "poisson_arrival",
-        "exec_time": 6.0,
-        "heavy_time": 6.0,
-        "heavy_per": 0.0,
+        "network_gen": "fixed",
+        "app_gen": "fixed",
+        "inter_gen": "exponential",
+        "app_time": 5.0,
+        "network_time": 1.0,
         "load": 0.9,
         "time_slice": 0.0,
         "enq_front": False
@@ -119,9 +119,8 @@ def run_sim(deq_cost, host, cores, config_json, queue_policy,
     for i in range(iterations):
         arg = copy.deepcopy(sim_args)
         arg.extend(["-s", str(seeds[i])])
-        print arg
-        #p = subprocess.Popen(arg, stdout=subprocess.PIPE)
-        #running_jobs.append(p)
+        p = subprocess.Popen(arg, stdout=subprocess.PIPE)
+        running_jobs.append(p)
 
     for p in running_jobs:
         out, err = p.communicate()
@@ -137,21 +136,15 @@ def run_sim(deq_cost, host, cores, config_json, queue_policy,
     full_name = output_name
     for key in range(len(config_json)):
         val = config_json[key]
-        flow_name = ("_" + "flow" + str(key) + "_" + str(val["work_gen"]) +
+        flow_name = ("_" + "flow" + str(key) + "_" + str(val["app_gen"]) +
                      "_" + str(val["inter_gen"]) + "_" + str(val["load"]))
 
-        if val.get("mean") is not None:
-            flow_name += "_" + str(val["mean"])
-        if val.get("std_dev_request") is not None:
-            flow_name += "_" + str(val["std_dev_request"])
-        if val.get("exec_time") is not None:
-            flow_name += "_" + str(val["exec_time"])
-        if val.get("heavy_per") is not None:
-            flow_name += "_" + str(val["heavy_per"])
-        if val.get("heavy_time") is not None:
-            flow_name += "_" + str(val["heavy_time"])
-        if val.get("std_dev_arrival") is not None:
-            flow_name += "_" + str(val["std_dev_arrival"])
+        if val.get("app_mean") is not None:
+            flow_name += "_" + str(val["app_mean"])
+        if val.get("std_dev_app") is not None:
+            flow_name += "_" + str(val["std_dev_app"])
+        if val.get("app_time") is not None:
+            flow_name += "_" + str(val["app_time"])
         if val.get("time_slice") is not None:
             flow_name += "_" + str(val["time_slice"])
         if val.get("enq_front") is not None:

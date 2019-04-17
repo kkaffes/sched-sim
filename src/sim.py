@@ -29,6 +29,7 @@ gen_dict = {
     'normal_request': 'NormalRequestGenerator',
     'pareto_request': 'ParetoRequestGenerator',
     'global': 'GlobalQueueHost',
+    'mixed_global': 'MixedGlobalQueueHost',
     'local': 'MultiQueueHost',
     'shinjuku':  'ShinjukuHost',
     'perflow': 'PerFlowQueueHost',
@@ -119,18 +120,16 @@ def main():
     # Create one object per flow
     for flow in flow_config:
         params = flow
-        inter_gen = getattr(sys.modules[__name__],
-                            gen_dict[params["inter_gen"]])
-        work_gen = getattr(sys.modules[__name__],
-                           gen_dict[params["work_gen"]])
+        #work_gen = getattr(sys.modules[__name__],
+        #                   gen_dict[params["work_gen"]])
 
         # Need to generate less load when we have shinjuku because one
         # of the cores is just the dispatcher
         if (opts.host_type == "shinjuku"):
             opts.cores = int(opts.cores) - 1
 
-        multigenerator.add_generator(work_gen(env, sim_host, inter_gen,
-                                              int(opts.cores), params))
+        multigenerator.add_generator(RequestGenerator(env, sim_host,
+                                     int(opts.cores), params))
 
     multigenerator.begin_generation()
 

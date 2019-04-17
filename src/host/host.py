@@ -79,6 +79,38 @@ class GlobalQueueHost(object):
         self.core_group.core_become_idle(core)
 
 
+class MixedGlobalQueueHost(object):
+
+    def __init__(self, env, num_cores, histograms, deq_cost, flow_config,
+                 opts):
+
+        self.env = env
+        self.core_group = CoreGroup()
+        self.queue = FIFORequestQueue(env, -1, deq_cost, flow_config)
+
+        for i in range(num_cores):
+            new_core = MixedCoreScheduler(env, histograms, i, flow_config)
+            new_core.set_queue(self.queue)
+            new_core.set_host(self)
+            self.core_group.append_idle_core(new_core)
+
+    def receive_request(self, request):
+        logging.debug('Host: Received request %d from flow %d at %f' %
+                      (request.idx, request.flow_id, self.env.now))
+
+        self.queue.enqueue(request)
+
+        # Putting active cores into list
+
+        activate_core = self.core_group.pop_one_idle_core()
+        if activate_core:
+            self.env.process(activate_core.become_active())
+            self.core_group.append_active_core(activate_core)
+
+    def core_become_idle(self, core, done_request):
+        self.core_group.core_become_idle(core)
+
+
 class MultiQueueHost(object):
 
     def __init__(self, env, num_queues, histograms, deq_cost, flow_config,

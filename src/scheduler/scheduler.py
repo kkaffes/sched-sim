@@ -202,3 +202,48 @@ class CoreScheduler(object):
 
         if self.host:
             self.host.core_become_idle(self, request)
+
+
+class MixedCoreScheduler(CoreScheduler):
+    def process_request(self, request):
+        logging.debug('Scheduler: Assigning request {} to core {} at {}'
+                      .format(request.idx, self.core_id, self.env.now))
+
+        time_slice = self.flow_config[request.flow_id].get('time_slice')
+        if request.network_time != 0:
+            if time_slice == 0 or time_slice >= request.network_time:
+                yield self.env.timeout(request.network_time)
+                request.network_time = 0
+                self.queue.renqueue(request)
+                logging.debug('Scheduler: Request {} finished net at core {}'
+                              ' at {}'.format(request.idx, self.core_id,
+                                              self.env.now))
+            else:
+                yield self.env.timeout(time_slice)
+                request.network_time -= time_slice
+                self.queue.renqueue(request)
+                logging.debug('Scheduler: Request {} preempted net at core {}'
+                              ' at {}'.format(request.idx, self.core_id,
+                                              self.env.now))
+        else:
+            if (time_slice == 0 or time_slice >= request.exec_time):
+                yield self.env.timeout(request.exec_time)
+                latency = self.env.now - request.start_time
+                logging.debug('Scheduler: Request {} Latency {}'.format
+                              (request.idx, latency))
+                flow_id = request.flow_id
+                self.histograms.record_value(flow_id, latency)
+                logging.debug('Scheduler: Request {} finished execution at'
+                              ' core {} at {}'.format(request.idx,
+                                                      self.core_id,
+                                                      self.env.now))
+            else:
+                yield self.env.timeout(time_slice + float(
+                                       self.flow_config[request.flow_id].
+                                       get('preemption')))
+                request.exec_time -= time_slice
+                request.expected_length -= time_slice
+                logging.debug('Scheduler: Request {} preempted at core {}'
+                              ' at {}'.format(request.idx, self.core_id,
+                                              self.env.now))
+                self.queue.renqueue(request)

@@ -10,7 +10,7 @@ class Request(object):
         self.expected_length = exec_time
 
     def __init__(self, idx, exec_time, network_time, start_time, flow_id,
-                 expected_length):
+                 expected_length=0):
         self.idx = idx
         self.network_time = network_time
         self.exec_time = exec_time
