@@ -247,3 +247,149 @@ class MixedCoreScheduler(CoreScheduler):
                               ' at {}'.format(request.idx, self.core_id,
                                               self.env.now))
                 self.queue.renqueue(request)
+
+
+class NetworkCoreScheduler(CoreScheduler):
+    def process_request(self, request):
+        logging.debug('NetScheduler: Assigning request {} to core {} at {}'
+                      .format(request.idx, self.core_id, self.env.now))
+
+        time_slice = self.flow_config[request.flow_id].get('time_slice')
+        if time_slice == 0 or time_slice >= request.network_time:
+            yield self.env.timeout(request.network_time)
+            request.network_time = 0
+            self.host.receive_request(request)
+            logging.debug('NetScheduler: Request {} finished net at core {}'
+                            ' at {}'.format(request.idx, self.core_id,
+                                            self.env.now))
+        else:
+            yield self.env.timeout(time_slice)
+            request.network_time -= time_slice
+            self.queue[0].renqueue(request)
+            logging.debug('NetScheduler: Request {} preempted net at core {}'
+                          ' at {}'.format(request.idx, self.core_id,
+                                          self.env.now))
+
+    def become_active(self):
+        if (self.active):
+            return
+        request = None
+
+        # Become idle only after process finishes
+        self.active = True
+        logging.debug("NetworkScheduler: Core {} becomes active at {}"
+                      .format(self.core_id, self.env.now))
+        while not self.queue[0].empty():
+            # Keep waiting for request
+            req = self.queue[0].resource.request()
+
+            # Wait for my turn of the lock
+            logging.debug("NetworkScheduler: Core {} acquiring lock"
+                          .format(self.core_id, self.env.now))
+            yield req
+            logging.debug("NetworkScheduler: Core {} got lock at {}"
+                          .format(self.core_id, self.env.now))
+
+            request = self.queue[0].dequeue()
+
+            total_time = self.env.now - request.start_time + request.exec_time
+            target_slo = self.flow_config[request.flow_id].get('slo',
+                                                               float('inf'))
+            if ((total_time > target_slo and
+                 self.flow_config[request.flow_id].get('drop'))):
+                self.histograms.drop_request(request.flow_id)
+                self.env.timeout(0.0)
+                self.queue[0].resource.release(req)
+            else:
+                p = None
+                if request is not None:
+                    p = self.env.process(self.process_request(request))
+                    # Take into account the dequeuing cost
+                    yield self.env.timeout(self.queue[0].dequeue_time)
+
+                    self.queue[0].resource.release(req)
+
+                if p:
+                    yield p
+
+        logging.debug("NetworkScheduler: Core {} becomes idle at {}"
+                      .format(self.core_id, self.env.now))
+        self.active = False
+
+        if self.host:
+            self.host.core_become_idle(self, request, True)
+
+
+class AppCoreScheduler(CoreScheduler):
+    def process_request(self, request):
+        logging.debug('AppScheduler: Assigning request {} to core {} at {}'
+                      .format(request.idx, self.core_id, self.env.now))
+
+        time_slice = self.flow_config[request.flow_id].get('time_slice')
+        if time_slice == 0 or time_slice >= request.exec_time:
+            yield self.env.timeout(request.exec_time)
+            request.exec_time = 0
+            latency = self.env.now - request.start_time
+            logging.debug('AppScheduler: Request {} Latency {}'.format
+                          (request.idx, latency))
+            flow_id = request.flow_id
+            self.histograms.record_value(flow_id, latency)
+            logging.debug('AppScheduler: Request {} finished execution at'
+                          ' core {} at {}'.format(request.idx, self.core_id,
+                                                  self.env.now))
+        else:
+            yield self.env.timeout(time_slice)
+            request.app_time -= time_slice
+            self.queue.renqueue(request)
+            logging.debug('AppScheduler: Request {} preempted app at core {}'
+                          ' at {}'.format(request.idx, self.core_id,
+                                          self.env.now))
+
+    def become_active(self):
+        if (self.active):
+            return
+        request = None
+
+        # Become idle only after process finishes
+        self.active = True
+        logging.debug("AppScheduler: Core {} becomes active at {}"
+                      .format(self.core_id, self.env.now))
+        while not self.queue.empty():
+            # Keep waiting for request
+            req = self.queue.resource.request()
+
+            # Wait for my turn of the lock
+            logging.debug("AppScheduler: Core {} acquiring lock"
+                          .format(self.core_id, self.env.now))
+            yield req
+            logging.debug("AppScheduler: Core {} got lock at {}"
+                          .format(self.core_id, self.env.now))
+
+            request = self.queue.dequeue()
+
+            total_time = self.env.now - request.start_time + request.exec_time
+            target_slo = self.flow_config[request.flow_id].get('slo',
+                                                               float('inf'))
+            if ((total_time > target_slo and
+                 self.flow_config[request.flow_id].get('drop'))):
+                self.histograms.drop_request(request.flow_id)
+                self.env.timeout(0.0)
+                self.queue.resource.release(req)
+            else:
+                p = None
+                if request is not None:
+                    p = self.env.process(self.process_request(request))
+                    # Take into account the dequeuing cost
+                    yield self.env.timeout(self.queue.dequeue_time)
+
+                    self.queue.resource.release(req)
+
+                if p:
+                    yield p
+
+        logging.debug("AppScheduler: Core {} becomes idle at {}"
+                      .format(self.core_id, self.env.now))
+        self.active = False
+
+        if self.host:
+            self.host.core_become_idle(self, request, False)

@@ -30,6 +30,7 @@ gen_dict = {
     'pareto_request': 'ParetoRequestGenerator',
     'global': 'GlobalQueueHost',
     'mixed_global': 'MixedGlobalQueueHost',
+    'partitioned_global': 'PartitionedGlobalQueueHost',
     'local': 'MultiQueueHost',
     'shinjuku':  'ShinjukuHost',
     'perflow': 'PerFlowQueueHost',
@@ -49,6 +50,9 @@ def main():
                       help='Print request latency histogram', default=False)
     parser.add_argument('-c', '--cores', dest='cores', action='store',
                       help='Set the number of cores of the system', default=8)
+    parser.add_argument('-n', '--network-cores', dest='network_cores',
+                        action='store', help='Set the number of networking'
+                        ' cores of the system', default=0)
     parser.add_argument('-s', '--seed', dest='seed', action='store',
                       help='Set the seed for request generator')
     parser.add_argument('-t', '--sim_time', dest='sim_time', action='store',

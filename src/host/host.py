@@ -79,6 +79,54 @@ class GlobalQueueHost(object):
         self.core_group.core_become_idle(core)
 
 
+class PartitionedGlobalQueueHost(object):
+
+    def __init__(self, env, num_cores, histograms, deq_cost, flow_config,
+                 opts):
+
+        self.env = env
+        self.app_core_group = CoreGroup()
+        self.net_core_group = CoreGroup()
+        self.net_queue = FIFORequestQueue(env, -1, deq_cost, flow_config)
+        self.app_queue = FIFORequestQueue(env, -1, deq_cost, flow_config)
+
+        for i in range(num_cores):
+            if i < int(opts.network_cores):
+                new_core = NetworkCoreScheduler(env, histograms, i,
+                                                flow_config)
+                new_core.set_queue([self.net_queue, self.app_queue])
+                new_core.set_host(self)
+                self.net_core_group.append_idle_core(new_core)
+            else:
+                new_core = AppCoreScheduler(env, histograms, i, flow_config)
+                new_core.set_queue(self.app_queue)
+                new_core.set_host(self)
+                self.app_core_group.append_idle_core(new_core)
+
+    def receive_request(self, request):
+        logging.debug('Host: Received request %d from flow %d at %f' %
+                      (request.idx, request.flow_id, self.env.now))
+
+        if request.network_time == 0.0:
+            self.app_queue.enqueue(request)
+            activate_core = self.app_core_group.pop_one_idle_core()
+            if activate_core:
+                self.env.process(activate_core.become_active())
+                self.app_core_group.append_active_core(activate_core)
+        else:
+            self.net_queue.enqueue(request)
+            activate_core = self.net_core_group.pop_one_idle_core()
+            if activate_core:
+                self.env.process(activate_core.become_active())
+                self.net_core_group.append_active_core(activate_core)
+
+    def core_become_idle(self, core, done_request, is_network):
+        if is_network:
+            self.net_core_group.core_become_idle(core)
+        else:
+            self.app_core_group.core_become_idle(core)
+
+
 class MixedGlobalQueueHost(object):
 
     def __init__(self, env, num_cores, histograms, deq_cost, flow_config,

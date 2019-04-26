@@ -11,14 +11,14 @@ import subprocess
 
 from multiprocessing import Process
 
-OUTPUT_DIR = "../../out/spring2019/network_f1_completion_global_fcfs_f5_12/"
+OUTPUT_DIR = "../../out/spring2019/network_f1_completion_partitionedglobal_fcfs_f5_12/"
 
 def main():
     global OUTPUT_DIR
     # Set the simulation parameters
     iterations = 10
     core_count = [12]
-    host_types = ['global']
+    host_types = ['partitioned_global']
     deq_costs = [0.0]
     queue_policies = ['global']
 
@@ -35,8 +35,8 @@ def main():
 
     config_jsons = []
     default_json = [{
-        "app_gen": "fixed",
         "network_gen": "fixed",
+        "app_gen": "fixed",
         "inter_gen": "exponential",
         "app_time": 5.0,
         "network_time": 1.0,
@@ -102,6 +102,7 @@ def run_sim(deq_cost, host, cores, config_json, queue_policy,
     # Run the simulation
     sim_args = ["../../src/sim.py",
                 "--cores", str(cores),
+                "--network-cores", str(2),
                 "--workload-conf", str(config_file),
                 "--host-type", str(host),
                 "--deq-cost", str(deq_cost),
